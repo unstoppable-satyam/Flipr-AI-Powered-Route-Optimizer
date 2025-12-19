@@ -19,6 +19,10 @@
 * **Frontend:** Streamlit, Folium
 * **Data:** OpenRouteService (Matrix API)
 
+## 🛠️ Setup
+1.  **Virtual Env:** `source venv/bin/activate` (Mac/Linux) or `venv\Scripts\activate` (Windows)
+2.  **Dependencies:** `pip install -r requirements.txt`
+
 ## 🏃‍♂️ How to Run
 1.  **Backend:** `uvicorn main:app --reload`
-2.  **Frontend:** `streamlit run frontend/app.py`# Flipr-AI-Powered-Route-Optimizer
+2.  **Frontend:** `streamlit run frontend/app.py`
