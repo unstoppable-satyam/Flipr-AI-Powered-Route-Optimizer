@@ -1,4 +1,3 @@
-```markdown
 # AI-Powered Multi-City Route Optimizer 🚛
 **Team Name:** [Team_Parinde] | **Event:** Flipr Hackathon 30.2
 
