@@ -1,0 +1,4 @@
+Dataset,Cities,Response Time (s),Total Dist (km),Total Time (hrs),Solver
+Small (5),5,2.408,17769.51,298.16,Baseline (Cheapest Insertion)
+Medium (10),10,4.746,18101.08,306.18,AI Evolutionary (Genetic Algorithm)
+Large (20),20,7.162,20482.54,350.88,AI Evolutionary (Genetic Algorithm)
