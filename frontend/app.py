@@ -411,53 +411,60 @@ with st.sidebar:
 
     if uploaded_file is not None and csv_signature != st.session_state["last_csv_signature"]:
         try:
-            df = pd.read_csv(uploaded_file)
+            df = pd.read_csv(uploaded_file, header=None)
 
-            if "city" not in df.columns:
-                st.error("❌ CSV must contain a 'city' column")
+            # Detect header automatically
+            first_row = df.iloc[0].astype(str).str.lower().tolist()
+            has_header = "city" in first_row
+
+            uploaded_file.seek(0)  # ✅ REQUIRED
+
+            if has_header:
+                df = pd.read_csv(uploaded_file)
             else:
-                added, updated, skipped = 0, 0, 0
+                df.columns = ["city", "priority", "deadline_hours"][:len(df.columns)]
 
-                for _, row in df.iterrows():
-                    raw_city = str(row["city"]).strip()
-                    if not raw_city:
-                        skipped += 1
-                        continue
+            added, updated, skipped = 0, 0, 0
 
-                    valid, lat, lon = validate_city_india_only(raw_city)
-                    if not valid:
-                        skipped += 1
-                        continue
+            for _, row in df.iterrows():
+                raw_city = str(row["city"]).strip()
+                if not raw_city:
+                    skipped += 1
+                    continue
 
-                    city_name = raw_city.title()
-                    city_id = city_name.lower().replace(" ", "_")
+                valid, lat, lon = validate_city_india_only(raw_city)
+                if not valid:
+                    skipped += 1
+                    continue
 
-                    priority = int(row["priority"]) if "priority" in df.columns and not pd.isna(row["priority"]) else 3
-                    deadline = float(row["deadline_hours"]) if "deadline_hours" in df.columns and not pd.isna(
-                        row["deadline_hours"]) else 24.0
+                city_name = raw_city.title()
+                city_id = city_name.lower().replace(" ", "_")
 
-                    if city_id in [d["id"] for d in st.session_state["destinations"]]:
-                        updated += 1
-                    else:
-                        st.session_state["destinations"].append({
-                            "id": city_id,
-                            "name": city_name,
-                            "priority": priority,
-                            "deadline_hours": deadline,
-                            "lat": lat,
-                            "lon": lon,
-                            "service_time_minutes": 30
-                        })
-                        added += 1
+                priority = int(row["priority"]) if "priority" in df.columns and not pd.isna(row["priority"]) else 3
+                deadline = float(row["deadline_hours"]) if "deadline_hours" in df.columns and not pd.isna(
+                    row["deadline_hours"]) else 24.0
 
-                # ✅ MARK THIS FILE AS PROCESSED
-                st.session_state["last_csv_signature"] = csv_signature
-                st.session_state["csv_processed"] = True
-                st.session_state["csv_uploader_key"] += 1
+                if city_id in [d["id"] for d in st.session_state["destinations"]]:
+                    updated += 1
+                else:
+                    st.session_state["destinations"].append({
+                        "id": city_id,
+                        "name": city_name,
+                        "priority": priority,
+                        "deadline_hours": deadline,
+                        "lat": lat,
+                        "lon": lon,
+                        "service_time_minutes": 30
+                    })
+                    added += 1
 
-                st.success(
-                    f"✅ CSV imported → {added} added | {updated} updated | {skipped} skipped"
-                )
+            # Mark CSV as processed
+            st.session_state["last_csv_signature"] = csv_signature
+            st.session_state["csv_processed"] = True
+            st.session_state["csv_uploader_key"] += 1
+
+            st.success(f"✅ CSV imported → {added} added | {updated} updated | {skipped} skipped")
+
 
         except Exception as e:
             st.error(f"❌ Failed to read CSV: {e}")
