@@ -327,6 +327,16 @@ if "optimization_result" not in st.session_state:
 
 st.title("🚛 AI-Powered Indian Route Optimizer")
 
+if "csv_processed" not in st.session_state:
+    st.session_state["csv_processed"] = False
+
+if "csv_uploader_key" not in st.session_state:
+    st.session_state["csv_uploader_key"] = 0
+    
+if "last_csv_signature" not in st.session_state:
+    st.session_state["last_csv_signature"] = None
+
+
 # ===================== SIDEBAR =====================
 with st.sidebar:
     st.header("1️⃣ Source City (India only)")
@@ -342,6 +352,71 @@ with st.sidebar:
     st.divider()
 
     st.header("2️⃣ Add Destination")
+    st.subheader("📤 Upload Destinations via CSV")
+
+    uploaded_file = st.file_uploader(
+        "Upload CSV file",
+        type=["csv"],
+        key=f"csv_uploader_{st.session_state['csv_uploader_key']}",
+        help="CSV columns: city (required), priority (optional), deadline_hours (optional)"
+    )
+
+    csv_signature = None
+    if uploaded_file is not None:
+        csv_signature = (uploaded_file.name, uploaded_file.size)
+
+    if uploaded_file is not None and csv_signature != st.session_state["last_csv_signature"]:
+        try:
+            df = pd.read_csv(uploaded_file)
+
+            if "city" not in df.columns:
+                st.error("❌ CSV must contain a 'city' column")
+            else:
+                added, updated, skipped = 0, 0, 0
+
+                for _, row in df.iterrows():
+                    raw_city = str(row["city"]).strip()
+                    if not raw_city:
+                        skipped += 1
+                        continue
+
+                    valid, lat, lon = validate_city_india_only(raw_city)
+                    if not valid:
+                        skipped += 1
+                        continue
+
+                    city_name = raw_city.title()
+                    city_id = city_name.lower().replace(" ", "_")
+
+                    priority = int(row["priority"]) if "priority" in df.columns and not pd.isna(row["priority"]) else 3
+                    deadline = float(row["deadline_hours"]) if "deadline_hours" in df.columns and not pd.isna(
+                        row["deadline_hours"]) else 24.0
+
+                    if city_id in [d["id"] for d in st.session_state["destinations"]]:
+                        updated += 1
+                    else:
+                        st.session_state["destinations"].append({
+                            "id": city_id,
+                            "name": city_name,
+                            "priority": priority,
+                            "deadline_hours": deadline,
+                            "lat": lat,
+                            "lon": lon,
+                            "service_time_minutes": 30
+                        })
+                        added += 1
+
+                # ✅ MARK THIS FILE AS PROCESSED
+                st.session_state["last_csv_signature"] = csv_signature
+                st.session_state["csv_processed"] = True
+                st.session_state["csv_uploader_key"] += 1
+
+                st.success(
+                    f"✅ CSV imported → {added} added | {updated} updated | {skipped} skipped"
+                )
+
+        except Exception as e:
+            st.error(f"❌ Failed to read CSV: {e}")
 
     new_city = st.text_input("City Name")
     new_priority = st.selectbox("Priority", [1, 2, 3], index=2)
@@ -390,6 +465,9 @@ with st.sidebar:
     if st.button("🗑️ Clear All"):
         st.session_state["destinations"] = []
         st.session_state["optimization_result"] = None
+        st.session_state["csv_processed"] = False
+        st.session_state["last_csv_signature"] = None
+        st.session_state["csv_uploader_key"] += 1
         st.rerun()
 
     st.divider()
