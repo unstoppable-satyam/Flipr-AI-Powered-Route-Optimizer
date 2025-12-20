@@ -102,7 +102,9 @@ def calculate_haversine_matrix(locations: List[Location], speed_kmh: float) -> T
             dist = haversine((locations[i].lat, locations[i].lon), 
                              (locations[j].lat, locations[j].lon), unit=Unit.KILOMETERS)
             dist_matrix[i][j] = dist
-            time_matrix[i][j] = dist / speed_kmh
+            # time_matrix[i][j] = dist / speed_kmh
+            time_matrix[i][j] = (dist / speed_kmh) * 3600  # seconds
+
             
     return dist_matrix, time_matrix
 
@@ -132,7 +134,9 @@ def get_distance_matrix(locations: List[Location], speed_kmh: float = 60.0):
             data = response.json()
             # Convert meters -> km, seconds -> hours
             distances = [[d / 1000.0 if d is not None else 0 for d in row] for row in data['distances']]
-            durations = [[t / 3600.0 if t is not None else 0 for t in row] for row in data['durations']]
+            # durations = [[t / 3600.0 if t is not None else 0 for t in row] for row in data['durations']]
+            durations = [[t if t is not None else 0 for t in row] for row in data['durations']]
+
             
             cache[key] = {"distances": distances, "durations": durations}
             save_cache(cache)
