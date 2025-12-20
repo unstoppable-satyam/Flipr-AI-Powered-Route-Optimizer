@@ -399,10 +399,10 @@ with st.sidebar:
     st.subheader("📤 Upload Destinations via CSV")
 
     uploaded_file = st.file_uploader(
-        "Upload CSV file",
-        type=["csv"],
-        key=f"csv_uploader_{st.session_state['csv_uploader_key']}",
-        help="CSV columns: city (required), priority (optional), deadline_hours (optional)"
+        "Upload CSV, JSON, or Excel file",
+        type=["csv", "json", "xlsx", "xls"],
+        key=f"uploader_{st.session_state['csv_uploader_key']}",
+        help="CSV / JSON / Excel. Fields: city (required), priority, deadline_hours"
     )
 
     csv_signature = None
@@ -411,23 +411,42 @@ with st.sidebar:
 
     if uploaded_file is not None and csv_signature != st.session_state["last_csv_signature"]:
         try:
-            df = pd.read_csv(uploaded_file, header=None)
+            filename = uploaded_file.name.lower()
 
-            # Detect header automatically
-            first_row = df.iloc[0].astype(str).str.lower().tolist()
-            has_header = "city" in first_row
+            # ---------- LOAD FILE ----------
+            if filename.endswith(".csv"):
+                df = pd.read_csv(uploaded_file, header=None)
 
-            uploaded_file.seek(0)  # ✅ REQUIRED
+                first_row = df.iloc[0].astype(str).str.lower().tolist()
+                has_header = "city" in first_row
 
-            if has_header:
-                df = pd.read_csv(uploaded_file)
+                uploaded_file.seek(0)
+
+                if has_header:
+                    df = pd.read_csv(uploaded_file)
+                else:
+                    df.columns = ["city", "priority", "deadline_hours"][:len(df.columns)]
+
+            elif filename.endswith(".json"):
+                df = pd.read_json(uploaded_file)
+
+            elif filename.endswith((".xlsx", ".xls")):
+                df = pd.read_excel(uploaded_file)
+
             else:
-                df.columns = ["city", "priority", "deadline_hours"][:len(df.columns)]
+                st.error("❌ Unsupported file format")
+                st.stop()
+
+            # ---------- VALIDATE ----------
+            if "city" not in df.columns:
+                st.error("❌ File must contain a 'city' column")
+                st.stop()
 
             added, updated, skipped = 0, 0, 0
 
+            # ---------- PROCESS ----------
             for _, row in df.iterrows():
-                raw_city = str(row["city"]).strip()
+                raw_city = str(row.get("city", "")).strip()
                 if not raw_city:
                     skipped += 1
                     continue
@@ -440,9 +459,8 @@ with st.sidebar:
                 city_name = raw_city.title()
                 city_id = city_name.lower().replace(" ", "_")
 
-                priority = int(row["priority"]) if "priority" in df.columns and not pd.isna(row["priority"]) else 3
-                deadline = float(row["deadline_hours"]) if "deadline_hours" in df.columns and not pd.isna(
-                    row["deadline_hours"]) else 24.0
+                priority = int(row.get("priority", 3)) if not pd.isna(row.get("priority", 3)) else 3
+                deadline = float(row.get("deadline_hours", 24)) if not pd.isna(row.get("deadline_hours", 24)) else 200.0
 
                 if city_id in [d["id"] for d in st.session_state["destinations"]]:
                     updated += 1
@@ -458,20 +476,19 @@ with st.sidebar:
                     })
                     added += 1
 
-            # Mark CSV as processed
+            # ---------- FINALIZE ----------
             st.session_state["last_csv_signature"] = csv_signature
             st.session_state["csv_processed"] = True
             st.session_state["csv_uploader_key"] += 1
 
-            st.success(f"✅ CSV imported → {added} added | {updated} updated | {skipped} skipped")
-
+            st.success(f"✅ Imported → {added} added | {updated} updated | {skipped} skipped")
 
         except Exception as e:
-            st.error(f"❌ Failed to read CSV: {e}")
+            st.error(f"❌ Failed to read file: {e}")
 
     new_city = st.text_input("City Name")
     new_priority = st.selectbox("Priority", [1, 2, 3], index=2)
-    new_deadline = st.number_input("Deadline (hrs)", min_value=1.0, value=24.0)
+    new_deadline = st.number_input("Deadline (hrs)", min_value=1.0, value=200.0)
 
     if st.button("➕ Add Stop"):
         valid, lat, lon = validate_city_india_only(new_city)
