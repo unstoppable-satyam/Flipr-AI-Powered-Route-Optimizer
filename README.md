@@ -20,7 +20,7 @@
 * **Data:** OpenRouteService (Matrix API)
 
 ## 🛠️ Setup
-1.  **Virtual Env:** `source venv/bin/activate` (Mac/Linux) or `venv\Scripts\activate` (Windows)
+1.  **Virtual Env:** `source venv/bin/activate` (Mac/Linux) or `.\.venv\Scripts\Activate` (Windows)
 2.  **Dependencies:** `pip install -r requirements.txt`
 
 ## 🏃‍♂️ How to Run
