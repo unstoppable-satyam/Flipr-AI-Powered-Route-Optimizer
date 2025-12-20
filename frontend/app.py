@@ -280,19 +280,25 @@ HEADERS = {
 }
 
 # ===================== INDIA-ONLY CITY VALIDATION =====================
+
 def validate_city_india_only(city_name: str):
     """
-    Checks if the city exists AND is in India.
-    Returns (is_valid, lat, lon)
+    STRICT + PRACTICAL validation:
+    ✔ Only real Indian cities / towns / capitals
+    ❌ No cafes, shops, salons, streets
+    ❌ No foreign city names mapped to Indian POIs
     """
+
     if not city_name or len(city_name.strip()) < 3:
         return False, None, None
 
+    query = city_name.strip().lower()
+
     params = {
-        "q": city_name,
+        "q": city_name.strip(),
         "format": "json",
-        "limit": 1,
-        "countrycodes": "in",      # 🔑 INDIA ONLY
+        "limit": 10,
+        "countrycodes": "in",
         "addressdetails": 1
     }
 
@@ -300,20 +306,58 @@ def validate_city_india_only(city_name: str):
         r = requests.get(GEOCODE_URL, params=params, headers=HEADERS, timeout=5)
         data = r.json()
 
-        if len(data) == 0:
+        if not data:
             return False, None, None
 
-        address = data[0].get("address", {})
-        if address.get("country_code", "").lower() != "in":
-            return False, None, None
+        for place in data:
+            address = place.get("address", {})
+            place_class = place.get("class", "")
+            place_type = place.get("type", "")
 
-        lat = float(data[0]["lat"])
-        lon = float(data[0]["lon"])
+            # 1️⃣ Must be India
+            if address.get("country_code", "").lower() != "in":
+                continue
 
-        return True, lat, lon
+            # 2️⃣ Reject POIs (cafes, shops, roads)
+            if place_class in ["amenity", "shop", "tourism", "leisure", "highway"]:
+                continue
+
+            # 3️⃣ Allowed admin / city cases
+            valid_place = (
+                (place_class == "place" and place_type in ["city", "town"]) or
+                (place_class == "boundary" and place_type == "administrative")
+            )
+
+            if not valid_place:
+                continue
+
+            # 4️⃣ Extract best possible city name
+            returned_name = (
+                address.get("city") or
+                address.get("town") or
+                address.get("state") or
+                ""
+            ).lower()
+
+            # 5️⃣ Exact match OR Delhi special-case
+            if returned_name != query:
+                # allow Delhi / New Delhi cross-match
+                if not (
+                    query in ["delhi", "new delhi"] and
+                    returned_name in ["delhi", "new delhi"]
+                ):
+                    continue
+
+            lat = float(place["lat"])
+            lon = float(place["lon"])
+
+            return True, lat, lon
+
+        return False, None, None
 
     except Exception:
         return False, None, None
+
 
 
 # ===================== STREAMLIT CONFIG =====================
