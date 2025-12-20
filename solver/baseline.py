@@ -78,42 +78,145 @@ def solve_baseline(source: Location, destinations: List[Destination],
 
 
 # --- HELPER 1: Calculate Cost & Lateness for a Route Sequence ---
-def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
-    """
-    Simulates the route to calculate total duration and total lateness minutes.
-    """
-    current_time = 0.0
-    total_lateness = 0.0
+# def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
+#     """
+#     Simulates the route to calculate total duration and total lateness minutes.
+#     """
+#     current_time = 0.0
+#     total_lateness = 0.0
     
-    for i in range(len(route_idxs)-1):
-        u, v = route_idxs[i], route_idxs[i+1]
+#     for i in range(len(route_idxs)-1):
+#         u, v = route_idxs[i], route_idxs[i+1]
         
-        # Add Travel Time
-        current_time += dur_matrix[u][v]
+#         # Add Travel Time
+#         # current_time += dur_matrix[u][v]
+#         current_time += dur_matrix[u][v] / 3600.0
+
         
-        # Find destination info (if v is a destination)
+#         # Find destination info (if v is a destination)
+#         dest_obj = next((d for d in dests if loc_map[d.id] == v), None)
+        
+#         if dest_obj:
+#             # Check Deadline
+#             if current_time > dest_obj.deadline_hours:
+#                 # Add to total lateness penalty
+#                 total_lateness += (current_time - dest_obj.deadline_hours)
+            
+#             # Add Service Time (Unloading)
+#             current_time += (dest_obj.service_time_minutes / 60.0)
+            
+#     return current_time, total_lateness
+def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
+    current_time = 0.0  # HOURS
+    total_lateness = 0.0
+
+    for i in range(len(route_idxs) - 1):
+        u, v = route_idxs[i], route_idxs[i + 1]
+
+        # Travel time (seconds → hours)
+        current_time += dur_matrix[u][v] / 3600.0
+
         dest_obj = next((d for d in dests if loc_map[d.id] == v), None)
-        
+
         if dest_obj:
-            # Check Deadline
             if current_time > dest_obj.deadline_hours:
-                # Add to total lateness penalty
                 total_lateness += (current_time - dest_obj.deadline_hours)
-            
-            # Add Service Time (Unloading)
-            current_time += (dest_obj.service_time_minutes / 60.0)
-            
+
+            # Service time (minutes → hours)
+            current_time += dest_obj.service_time_minutes / 60.0
+
     return current_time, total_lateness
 
 
+
 # --- HELPER 2: Generate Final Detailed Report ---
-def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, loc_map):
-    total_dist = 0
-    total_time = 0
-    schedule = []
-    current_time = 0.0
+# def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, loc_map):
+#     total_dist = 0
+#     total_time = 0
+#     schedule = []
+#     current_time = 0.0
     
-    # 1. Add Start Point
+#     # 1. Add Start Point
+#     schedule.append({
+#         "stop_id": source.id,
+#         "stop_name": source.name,
+#         "arrival_time": 0.0,
+#         "departure_time": 0.0,
+#         "lat": source.lat,
+#         "lon": source.lon,
+#         "status": "START"
+#     })
+
+#     # 2. Loop through path
+#     for i in range(len(route_idxs)-1):
+#         u, v = route_idxs[i], route_idxs[i+1]
+        
+#         travel = dur_m[u][v]
+#         dist = dist_m[u][v]
+        
+#         arrival = current_time + travel
+        
+#         # Find Dest Info
+#         dest = next((d for d in dests if loc_map[d.id] == v), None)
+        
+#         status = "OK"
+#         service = 0.0
+#         name = source.name
+#         lat, lon = source.lat, source.lon
+        
+#         if dest:
+#             service = (dest.service_time_minutes / 60.0)
+#             name = dest.name
+#             lat, lon = dest.lat, dest.lon
+            
+#             # Final Deadline Check for Reporting
+#             if arrival > dest.deadline_hours:
+#                 late_by = round(arrival - dest.deadline_hours, 1)
+#                 status = f"LATE (+{late_by}h)"
+#         else:
+#             status = "END"
+            
+#         departure = arrival + service
+        
+#         schedule.append({
+#             "stop_id": loc_names[v],
+#             "stop_name": name,
+#             "arrival_time": round(arrival, 2),
+#             "departure_time": round(departure, 2),
+#             "lat": lat,
+#             "lon": lon,
+#             "status": status
+#         })
+        
+#         total_dist += dist
+#         total_time += (travel + service)
+#         current_time = departure
+        
+#     return None, None, schedule, total_dist, total_time
+def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, loc_map):
+    """
+    Generate schedule where:
+    - dur_m contains durations in SECONDS (as returned by distance_matrix.get_distance_matrix)
+    - dist_m contains distances in KM
+    Returns: (None, None, schedule, total_dist_km, total_time_hours)
+    """
+    # Sanity check (durations should look like seconds, not tiny fractions)
+    try:
+        # if matrix has at least one non-zero entry, check magnitude
+        sample = next(t for row in dur_m for t in row if t is not None and t > 0)
+        assert sample > 10, "dur_matrix appears to be in seconds; expected >10"
+    except StopIteration:
+        pass
+    except AssertionError:
+        # continue anyway but helpful log
+        print("Warning: dur_matrix values look unusually small; check units.")
+
+    total_dist = 0.0           # in km
+    total_time = 0.0           # in hours
+    schedule = []
+    current_time = 0.0         # in hours
+
+    # 1. Start point
     schedule.append({
         "stop_id": source.id,
         "stop_name": source.name,
@@ -124,37 +227,40 @@ def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, lo
         "status": "START"
     })
 
-    # 2. Loop through path
-    for i in range(len(route_idxs)-1):
-        u, v = route_idxs[i], route_idxs[i+1]
-        
-        travel = dur_m[u][v]
-        dist = dist_m[u][v]
-        
-        arrival = current_time + travel
-        
-        # Find Dest Info
+    # 2. Traverse legs
+    for i in range(len(route_idxs) - 1):
+        u, v = route_idxs[i], route_idxs[i + 1]
+
+        # durations are seconds → convert to hours
+        travel_sec = dur_m[u][v]
+        travel_hr = (travel_sec / 3600.0) if travel_sec is not None else 0.0
+
+        dist_km = dist_m[u][v] if dist_m and dist_m[u][v] is not None else 0.0
+
+        arrival = current_time + travel_hr
+
+        # Find dest object (if v is a destination)
         dest = next((d for d in dests if loc_map[d.id] == v), None)
-        
+
         status = "OK"
-        service = 0.0
+        service_hr = 0.0
         name = source.name
         lat, lon = source.lat, source.lon
-        
+
         if dest:
-            service = (dest.service_time_minutes / 60.0)
+            service_hr = dest.service_time_minutes / 60.0
             name = dest.name
             lat, lon = dest.lat, dest.lon
-            
-            # Final Deadline Check for Reporting
+
+            # Deadline check (both in hours)
             if arrival > dest.deadline_hours:
-                late_by = round(arrival - dest.deadline_hours, 1)
+                late_by = round(arrival - dest.deadline_hours, 2)
                 status = f"LATE (+{late_by}h)"
         else:
             status = "END"
-            
-        departure = arrival + service
-        
+
+        departure = arrival + service_hr
+
         schedule.append({
             "stop_id": loc_names[v],
             "stop_name": name,
@@ -164,9 +270,9 @@ def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, lo
             "lon": lon,
             "status": status
         })
-        
-        total_dist += dist
-        total_time += (travel + service)
+
+        total_dist += dist_km
+        total_time += (travel_hr + service_hr)
         current_time = departure
-        
+
     return None, None, schedule, total_dist, total_time

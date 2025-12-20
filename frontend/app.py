@@ -332,15 +332,27 @@ def validate_city_india_only(city_name: str):
                 continue
 
             # 4️⃣ Extract best possible city name
+            # returned_name = (
+            #     address.get("city") or
+            #     address.get("town") or
+            #     address.get("state") or
+            #     ""
+            # ).lower()
             returned_name = (
                 address.get("city") or
+                address.get("city_district") or
+                address.get("municipality") or
                 address.get("town") or
+                address.get("county") or
                 address.get("state") or
                 ""
             ).lower()
 
+
             # 5️⃣ Exact match OR Delhi special-case
-            if returned_name != query:
+            # if returned_name != query:
+            if query not in returned_name and returned_name not in query:
+
                 # allow Delhi / New Delhi cross-match
                 if not (
                     query in ["delhi", "new delhi"] and
@@ -562,9 +574,37 @@ if result:
 
     col1, col2 = st.columns([2, 1])
 
+    # with col2:
+    #     st.subheader("📋 Schedule")
+    #     st.dataframe(pd.DataFrame(result["schedule"]))
     with col2:
         st.subheader("📋 Schedule")
-        st.dataframe(pd.DataFrame(result["schedule"]))
+
+        schedule_df = pd.DataFrame(result["schedule"])
+
+        # Map deadlines from destinations
+        deadline_map = {
+            d["id"]: d["deadline_hours"]
+            for d in st.session_state["destinations"]
+        }
+
+        def compute_deadline_miss(row):
+            stop_id = row["stop_id"]
+            arrival = row["arrival_time"]
+
+            # Source / end depot → no deadline
+            if stop_id not in deadline_map:
+                return 0.0
+
+            deadline = deadline_map[stop_id]
+            return round(max(0, arrival - deadline), 2)
+
+        schedule_df["deadline_missed_hrs"] = schedule_df.apply(
+            compute_deadline_miss, axis=1
+        )
+
+        st.dataframe(schedule_df)
+
 
     with col1:
         st.subheader("🗺️ Route Map")

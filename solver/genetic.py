@@ -85,6 +85,9 @@ def solve_genetic(source: Location, destinations: List[Destination],
 
     # 4. Decode Best Solution
     # Reconstruct full path: Source -> [Best Chromosome] -> Source
+    # SAFETY: if GA exits early (time limit) before finding best
+    if best_chromosome is None:
+        best_chromosome = population[0]
     final_indices = [source_idx] + best_chromosome + [source_idx]
     
     # Reuse the reporter from Baseline to generate schedule
@@ -94,46 +97,85 @@ def solve_genetic(source: Location, destinations: List[Destination],
 
 # --- CORE GA FUNCTIONS ---
 
+# def calculate_fitness(chromosome, source_idx, dests, dur_matrix, loc_map):
+#     """
+#     Fitness = Total Duration + (Lateness * Weight) + (Priority Inversion * Weight)
+#     """
+#     total_time = 0.0
+#     total_lateness = 0.0
+#     current_time = 0.0
+    
+#     # Add travel from Source -> First Node
+#     first_node = chromosome[0]
+#     current_time += dur_matrix[source_idx][first_node]
+#     total_time += dur_matrix[source_idx][first_node]
+    
+#     for i in range(len(chromosome)):
+#         curr_node = chromosome[i]
+        
+#         # Find Destination Object
+#         dest_obj = next((d for d in dests if loc_map[d.id] == curr_node), None)
+        
+#         if dest_obj:
+#             # Check Deadline
+#             if current_time > dest_obj.deadline_hours:
+#                 total_lateness += (current_time - dest_obj.deadline_hours)
+            
+#             # Service Time
+#             service_hrs = dest_obj.service_time_minutes / 60.0
+#             current_time += service_hrs
+#             total_time += service_hrs
+            
+#         # Travel to next node (or back to source if last)
+#         if i < len(chromosome) - 1:
+#             next_node = chromosome[i+1]
+#         else:
+#             next_node = source_idx
+            
+#         travel = dur_matrix[curr_node][next_node]
+#         current_time += travel
+#         total_time += travel
+
+#     return total_time + (total_lateness * LATENESS_WEIGHT)
 def calculate_fitness(chromosome, source_idx, dests, dur_matrix, loc_map):
     """
-    Fitness = Total Duration + (Lateness * Weight) + (Priority Inversion * Weight)
+    Fitness = Total Duration (hours) + (Lateness * Weight)
     """
-    total_time = 0.0
-    total_lateness = 0.0
-    current_time = 0.0
-    
-    # Add travel from Source -> First Node
+    total_time = 0.0          # hours
+    total_lateness = 0.0      # hours
+    current_time = 0.0        # hours
+
+    # Source -> First node
     first_node = chromosome[0]
-    current_time += dur_matrix[source_idx][first_node]
-    total_time += dur_matrix[source_idx][first_node]
-    
+    # leg_time_hr = dur_matrix[source_idx][first_node] / 3600.0
+    leg_time_hr = (dur_matrix[source_idx][first_node] or 0.0) / 3600.0
+
+    current_time += leg_time_hr
+    total_time += leg_time_hr
+
     for i in range(len(chromosome)):
         curr_node = chromosome[i]
-        
-        # Find Destination Object
+
         dest_obj = next((d for d in dests if loc_map[d.id] == curr_node), None)
-        
+
         if dest_obj:
-            # Check Deadline
             if current_time > dest_obj.deadline_hours:
                 total_lateness += (current_time - dest_obj.deadline_hours)
-            
-            # Service Time
+
             service_hrs = dest_obj.service_time_minutes / 60.0
             current_time += service_hrs
             total_time += service_hrs
-            
-        # Travel to next node (or back to source if last)
-        if i < len(chromosome) - 1:
-            next_node = chromosome[i+1]
-        else:
-            next_node = source_idx
-            
-        travel = dur_matrix[curr_node][next_node]
-        current_time += travel
-        total_time += travel
+
+        # Next travel
+        next_node = chromosome[i + 1] if i < len(chromosome) - 1 else source_idx
+        # leg_time_hr = dur_matrix[curr_node][next_node] / 3600.0
+        leg_time_hr = (dur_matrix[curr_node][next_node] or 0.0) / 3600.0
+
+        current_time += leg_time_hr
+        total_time += leg_time_hr
 
     return total_time + (total_lateness * LATENESS_WEIGHT)
+
 
 def tournament_selection(scored_population, k=3):
     candidates = random.sample(scored_population, k)
@@ -166,13 +208,69 @@ def mutate(chromosome):
     idx1, idx2 = random.sample(range(len(chromosome)), 2)
     chromosome[idx1], chromosome[idx2] = chromosome[idx2], chromosome[idx1]
 
-def generate_report(route_indices, dests, source, dist_m, dur_m, loc_names, loc_map):
-    total_dist = 0
-    total_time = 0
-    schedule = []
-    current_time = 0.0
+# def generate_report(route_indices, dests, source, dist_m, dur_m, loc_names, loc_map):
+#     total_dist = 0
+#     total_time = 0
+#     schedule = []
+#     current_time = 0.0
     
-    # Start
+#     # Start
+#     schedule.append({
+#         "stop_id": source.id,
+#         "stop_name": source.name,
+#         "arrival_time": 0.0,
+#         "departure_time": 0.0,
+#         "lat": source.lat,
+#         "lon": source.lon,
+#         "status": "START"
+#     })
+
+#     for i in range(len(route_indices)-1):
+#         u, v = route_indices[i], route_indices[i+1]
+#         travel = dur_m[u][v]
+#         dist = dist_m[u][v]
+#         arrival = current_time + travel
+        
+#         dest = next((d for d in dests if loc_map[d.id] == v), None)
+        
+#         status = "OK"
+#         service = 0.0
+#         name = source.name
+#         lat, lon = source.lat, source.lon
+        
+#         if dest:
+#             service = (dest.service_time_minutes / 60.0)
+#             name = dest.name
+#             lat, lon = dest.lat, dest.lon
+#             if arrival > dest.deadline_hours:
+#                 late_by = round(arrival - dest.deadline_hours, 1)
+#                 status = f"LATE (+{late_by}h)"
+#         else:
+#             status = "END"
+            
+#         departure = arrival + service
+        
+#         schedule.append({
+#             "stop_id": loc_names[v],
+#             "stop_name": name,
+#             "arrival_time": round(arrival, 2),
+#             "departure_time": round(departure, 2),
+#             "lat": lat,
+#             "lon": lon,
+#             "status": status
+#         })
+        
+#         total_dist += dist
+#         total_time += (travel + service)
+#         current_time = departure
+        
+#     return [loc_names[i] for i in route_indices], schedule, total_dist, total_time
+def generate_report(route_indices, dests, source, dist_m, dur_m, loc_names, loc_map):
+    total_dist = 0.0     # km
+    total_time = 0.0     # hours
+    schedule = []
+    current_time = 0.0   # hours
+
     schedule.append({
         "stop_id": source.id,
         "stop_name": source.name,
@@ -183,31 +281,34 @@ def generate_report(route_indices, dests, source, dist_m, dur_m, loc_names, loc_
         "status": "START"
     })
 
-    for i in range(len(route_indices)-1):
-        u, v = route_indices[i], route_indices[i+1]
-        travel = dur_m[u][v]
-        dist = dist_m[u][v]
-        arrival = current_time + travel
-        
+    for i in range(len(route_indices) - 1):
+        u, v = route_indices[i], route_indices[i + 1]
+
+        travel_hr = dur_m[u][v] / 3600.0
+        dist_km = dist_m[u][v]
+
+        arrival = current_time + travel_hr
+
         dest = next((d for d in dests if loc_map[d.id] == v), None)
-        
-        status = "OK"
+
         service = 0.0
+        status = "OK"
         name = source.name
         lat, lon = source.lat, source.lon
-        
+
         if dest:
-            service = (dest.service_time_minutes / 60.0)
+            service = dest.service_time_minutes / 60.0
             name = dest.name
             lat, lon = dest.lat, dest.lon
+
             if arrival > dest.deadline_hours:
-                late_by = round(arrival - dest.deadline_hours, 1)
+                late_by = round(arrival - dest.deadline_hours, 2)
                 status = f"LATE (+{late_by}h)"
         else:
             status = "END"
-            
+
         departure = arrival + service
-        
+
         schedule.append({
             "stop_id": loc_names[v],
             "stop_name": name,
@@ -217,9 +318,9 @@ def generate_report(route_indices, dests, source, dist_m, dur_m, loc_names, loc_
             "lon": lon,
             "status": status
         })
-        
-        total_dist += dist
-        total_time += (travel + service)
+
+        total_dist += dist_km
+        total_time += (travel_hr + service)
         current_time = departure
-        
+
     return [loc_names[i] for i in route_indices], schedule, total_dist, total_time
