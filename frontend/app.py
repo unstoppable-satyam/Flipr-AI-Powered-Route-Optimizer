@@ -815,6 +815,9 @@ def show_how_to_use():
 **CSV / Excel format (example)**:
 - Input columns `city`, `priority` and `deadline`.
 
+**JSON format
+- city, priority and deadline_hours are required
+
 **3) Review & Edit**
 - Use the Destinations List to remove or clear stops.
 
