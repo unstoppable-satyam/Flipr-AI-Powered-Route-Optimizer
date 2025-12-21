@@ -1,142 +1,222 @@
-from typing import List, Tuple
-from models import Location, Destination
+# from typing import List, Tuple
+# from models import Location, Destination
 
-# --- TUNING KNOB ---
-# 0.5 = Weak (Will sacrifice deadline to save 2 mins driving)
-# 2.0 = Balanced (1 min late is as bad as 2 mins extra driving)
-# 5.0 = Strict (Will drive 5 mins extra just to avoid being 1 min late)
-LATENESS_PENALTY_WEIGHT = 2.0 
+# # --- TUNING KNOB ---
+# # 0.5 = Weak (Will sacrifice deadline to save 2 mins driving)
+# # 2.0 = Balanced (1 min late is as bad as 2 mins extra driving)
+# # 5.0 = Strict (Will drive 5 mins extra just to avoid being 1 min late)
+# LATENESS_PENALTY_WEIGHT = 2.0 
 
-def solve_baseline(source: Location, destinations: List[Destination], 
-                   dist_matrix: List[List[float]], dur_matrix: List[List[float]], 
-                   locations_map: List[str]) -> Tuple[List[str], List[dict], float, float]:
+# def solve_baseline(source: Location, destinations: List[Destination], 
+#                    dist_matrix: List[List[float]], dur_matrix: List[List[float]], 
+#                    locations_map: List[str]) -> Tuple[List[str], List[dict], float, float]:
     
-    # Map ID to Matrix Index for O(1) lookups
-    loc_to_index = {loc_id: i for i, loc_id in enumerate(locations_map)}
+#     # Map ID to Matrix Index for O(1) lookups
+#     loc_to_index = {loc_id: i for i, loc_id in enumerate(locations_map)}
     
-    # Track unvisited cities
-    unvisited_ids = [d.id for d in destinations]
+#     # Track unvisited cities
+#     unvisited_ids = [d.id for d in destinations]
     
-    # Start: Source -> Source (Closed Loop)
-    route_indices = [loc_to_index[source.id], loc_to_index[source.id]]
+#     # Start: Source -> Source (Closed Loop)
+#     route_indices = [loc_to_index[source.id], loc_to_index[source.id]]
     
-    # --- GLOBAL SMART INSERTION LOOP ---
-    # We keep adding cities until none are left.
-    while unvisited_ids:
-        best_city_id = None
-        best_position = -1
-        min_score = float('inf')
+#     # --- GLOBAL SMART INSERTION LOOP ---
+#     # We keep adding cities until none are left.
+#     while unvisited_ids:
+#         best_city_id = None
+#         best_position = -1
+#         min_score = float('inf')
         
-        # 1. Evaluate inserting EVERY unvisited city...
-        for uid in unvisited_ids:
-            city_idx = loc_to_index[uid]
+#         # 1. Evaluate inserting EVERY unvisited city...
+#         for uid in unvisited_ids:
+#             city_idx = loc_to_index[uid]
             
-            # 2. ...at EVERY possible position in the current route
-            for i in range(1, len(route_indices)):
-                # Create a temporary route to test what happens if we insert here
-                test_route = route_indices[:i] + [city_idx] + route_indices[i:]
+#             # 2. ...at EVERY possible position in the current route
+#             for i in range(1, len(route_indices)):
+#                 # Create a temporary route to test what happens if we insert here
+#                 test_route = route_indices[:i] + [city_idx] + route_indices[i:]
                 
-                # 3. Calculate metrics for this specific test route
-                total_time, total_lateness = calculate_route_metrics(
-                    test_route, destinations, source, dur_matrix, loc_to_index
-                )
+#                 # 3. Calculate metrics for this specific test route
+#                 total_time, total_lateness = calculate_route_metrics(
+#                     test_route, destinations, source, dur_matrix, loc_to_index
+#                 )
                 
-                # 4. THE MAGIC FORMULA (Weighted Cost Function)
-                # Score = Travel Time + (Penalty * Lateness)
-                score = total_time + (LATENESS_PENALTY_WEIGHT * total_lateness)
+#                 # 4. THE MAGIC FORMULA (Weighted Cost Function)
+#                 # Score = Travel Time + (Penalty * Lateness)
+#                 score = total_time + (LATENESS_PENALTY_WEIGHT * total_lateness)
                 
-                # Check if this is the best move so far
-                if score < min_score:
-                    min_score = score
-                    best_position = i
-                    best_city_id = uid
+#                 # Check if this is the best move so far
+#                 if score < min_score:
+#                     min_score = score
+#                     best_position = i
+#                     best_city_id = uid
                 
-                # Tie-Breaker: Priority (If scores are very close, pick higher priority)
-                elif abs(score - min_score) < 0.001: 
-                    # Find priority of current candidate vs best candidate
-                    curr_obj = next(d for d in destinations if d.id == uid)
-                    best_obj = next(d for d in destinations if d.id == best_city_id)
+#                 # Tie-Breaker: Priority (If scores are very close, pick higher priority)
+#                 elif abs(score - min_score) < 0.001: 
+#                     # Find priority of current candidate vs best candidate
+#                     curr_obj = next(d for d in destinations if d.id == uid)
+#                     best_obj = next(d for d in destinations if d.id == best_city_id)
                     
-                    if curr_obj.priority < best_obj.priority: # Lower number is higher priority
-                        best_position = i
-                        best_city_id = uid
+#                     if curr_obj.priority < best_obj.priority: # Lower number is higher priority
+#                         best_position = i
+#                         best_city_id = uid
         
-        # Commit the best move found in this round
-        if best_city_id:
-            route_indices.insert(best_position, loc_to_index[best_city_id])
-            unvisited_ids.remove(best_city_id)
-        else:
-            # Should basically never happen unless unvisited_ids is empty
-            break
+#         # Commit the best move found in this round
+#         if best_city_id:
+#             route_indices.insert(best_position, loc_to_index[best_city_id])
+#             unvisited_ids.remove(best_city_id)
+#         else:
+#             # Should basically never happen unless unvisited_ids is empty
+#             break
 
-    # --- FINAL REPORT GENERATION ---
-    _, _, final_schedule, total_dist, total_time = generate_final_stats(
-        route_indices, destinations, source, dist_matrix, dur_matrix, locations_map, loc_to_index
-    )
+#     # --- FINAL REPORT GENERATION ---
+#     _, _, final_schedule, total_dist, total_time = generate_final_stats(
+#         route_indices, destinations, source, dist_matrix, dur_matrix, locations_map, loc_to_index
+#     )
 
-    return [locations_map[i] for i in route_indices], final_schedule, total_dist, total_time
+#     return [locations_map[i] for i in route_indices], final_schedule, total_dist, total_time
 
 
-# --- HELPER 1: Calculate Cost & Lateness for a Route Sequence ---
-# def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
-#     """
-#     Simulates the route to calculate total duration and total lateness minutes.
-#     """
-#     current_time = 0.0
-#     total_lateness = 0.0
+# # --- HELPER 1: Calculate Cost & Lateness for a Route Sequence ---
+# # def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
+# #     """
+# #     Simulates the route to calculate total duration and total lateness minutes.
+# #     """
+# #     current_time = 0.0
+# #     total_lateness = 0.0
     
-#     for i in range(len(route_idxs)-1):
-#         u, v = route_idxs[i], route_idxs[i+1]
+# #     for i in range(len(route_idxs)-1):
+# #         u, v = route_idxs[i], route_idxs[i+1]
         
-#         # Add Travel Time
-#         # current_time += dur_matrix[u][v]
+# #         # Add Travel Time
+# #         # current_time += dur_matrix[u][v]
+# #         current_time += dur_matrix[u][v] / 3600.0
+
+        
+# #         # Find destination info (if v is a destination)
+# #         dest_obj = next((d for d in dests if loc_map[d.id] == v), None)
+        
+# #         if dest_obj:
+# #             # Check Deadline
+# #             if current_time > dest_obj.deadline_hours:
+# #                 # Add to total lateness penalty
+# #                 total_lateness += (current_time - dest_obj.deadline_hours)
+            
+# #             # Add Service Time (Unloading)
+# #             current_time += (dest_obj.service_time_minutes / 60.0)
+            
+# #     return current_time, total_lateness
+# def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
+#     current_time = 0.0  # HOURS
+#     total_lateness = 0.0
+
+#     for i in range(len(route_idxs) - 1):
+#         u, v = route_idxs[i], route_idxs[i + 1]
+
+#         # Travel time (seconds → hours)
 #         current_time += dur_matrix[u][v] / 3600.0
 
-        
-#         # Find destination info (if v is a destination)
 #         dest_obj = next((d for d in dests if loc_map[d.id] == v), None)
-        
+
 #         if dest_obj:
-#             # Check Deadline
 #             if current_time > dest_obj.deadline_hours:
-#                 # Add to total lateness penalty
 #                 total_lateness += (current_time - dest_obj.deadline_hours)
-            
-#             # Add Service Time (Unloading)
-#             current_time += (dest_obj.service_time_minutes / 60.0)
-            
+
+#             # Service time (minutes → hours)
+#             current_time += dest_obj.service_time_minutes / 60.0
+
 #     return current_time, total_lateness
-def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
-    current_time = 0.0  # HOURS
-    total_lateness = 0.0
-
-    for i in range(len(route_idxs) - 1):
-        u, v = route_idxs[i], route_idxs[i + 1]
-
-        # Travel time (seconds → hours)
-        current_time += dur_matrix[u][v] / 3600.0
-
-        dest_obj = next((d for d in dests if loc_map[d.id] == v), None)
-
-        if dest_obj:
-            if current_time > dest_obj.deadline_hours:
-                total_lateness += (current_time - dest_obj.deadline_hours)
-
-            # Service time (minutes → hours)
-            current_time += dest_obj.service_time_minutes / 60.0
-
-    return current_time, total_lateness
 
 
 
-# --- HELPER 2: Generate Final Detailed Report ---
-# def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, loc_map):
-#     total_dist = 0
-#     total_time = 0
-#     schedule = []
-#     current_time = 0.0
+# # --- HELPER 2: Generate Final Detailed Report ---
+# # def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, loc_map):
+# #     total_dist = 0
+# #     total_time = 0
+# #     schedule = []
+# #     current_time = 0.0
     
-#     # 1. Add Start Point
+# #     # 1. Add Start Point
+# #     schedule.append({
+# #         "stop_id": source.id,
+# #         "stop_name": source.name,
+# #         "arrival_time": 0.0,
+# #         "departure_time": 0.0,
+# #         "lat": source.lat,
+# #         "lon": source.lon,
+# #         "status": "START"
+# #     })
+
+# #     # 2. Loop through path
+# #     for i in range(len(route_idxs)-1):
+# #         u, v = route_idxs[i], route_idxs[i+1]
+        
+# #         travel = dur_m[u][v]
+# #         dist = dist_m[u][v]
+        
+# #         arrival = current_time + travel
+        
+# #         # Find Dest Info
+# #         dest = next((d for d in dests if loc_map[d.id] == v), None)
+        
+# #         status = "OK"
+# #         service = 0.0
+# #         name = source.name
+# #         lat, lon = source.lat, source.lon
+        
+# #         if dest:
+# #             service = (dest.service_time_minutes / 60.0)
+# #             name = dest.name
+# #             lat, lon = dest.lat, dest.lon
+            
+# #             # Final Deadline Check for Reporting
+# #             if arrival > dest.deadline_hours:
+# #                 late_by = round(arrival - dest.deadline_hours, 1)
+# #                 status = f"LATE (+{late_by}h)"
+# #         else:
+# #             status = "END"
+            
+# #         departure = arrival + service
+        
+# #         schedule.append({
+# #             "stop_id": loc_names[v],
+# #             "stop_name": name,
+# #             "arrival_time": round(arrival, 2),
+# #             "departure_time": round(departure, 2),
+# #             "lat": lat,
+# #             "lon": lon,
+# #             "status": status
+# #         })
+        
+# #         total_dist += dist
+# #         total_time += (travel + service)
+# #         current_time = departure
+        
+# #     return None, None, schedule, total_dist, total_time
+# def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, loc_map):
+#     """
+#     Generate schedule where:
+#     - dur_m contains durations in SECONDS (as returned by distance_matrix.get_distance_matrix)
+#     - dist_m contains distances in KM
+#     Returns: (None, None, schedule, total_dist_km, total_time_hours)
+#     """
+#     # Sanity check (durations should look like seconds, not tiny fractions)
+#     try:
+#         # if matrix has at least one non-zero entry, check magnitude
+#         sample = next(t for row in dur_m for t in row if t is not None and t > 0)
+#         assert sample > 10, "dur_matrix appears to be in seconds; expected >10"
+#     except StopIteration:
+#         pass
+#     except AssertionError:
+#         # continue anyway but helpful log
+#         print("Warning: dur_matrix values look unusually small; check units.")
+
+#     total_dist = 0.0           # in km
+#     total_time = 0.0           # in hours
+#     schedule = []
+#     current_time = 0.0         # in hours
+
+#     # 1. Start point
 #     schedule.append({
 #         "stop_id": source.id,
 #         "stop_name": source.name,
@@ -147,37 +227,40 @@ def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
 #         "status": "START"
 #     })
 
-#     # 2. Loop through path
-#     for i in range(len(route_idxs)-1):
-#         u, v = route_idxs[i], route_idxs[i+1]
-        
-#         travel = dur_m[u][v]
-#         dist = dist_m[u][v]
-        
-#         arrival = current_time + travel
-        
-#         # Find Dest Info
+#     # 2. Traverse legs
+#     for i in range(len(route_idxs) - 1):
+#         u, v = route_idxs[i], route_idxs[i + 1]
+
+#         # durations are seconds → convert to hours
+#         travel_sec = dur_m[u][v]
+#         travel_hr = (travel_sec / 3600.0) if travel_sec is not None else 0.0
+
+#         dist_km = dist_m[u][v] if dist_m and dist_m[u][v] is not None else 0.0
+
+#         arrival = current_time + travel_hr
+
+#         # Find dest object (if v is a destination)
 #         dest = next((d for d in dests if loc_map[d.id] == v), None)
-        
+
 #         status = "OK"
-#         service = 0.0
+#         service_hr = 0.0
 #         name = source.name
 #         lat, lon = source.lat, source.lon
-        
+
 #         if dest:
-#             service = (dest.service_time_minutes / 60.0)
+#             service_hr = dest.service_time_minutes / 60.0
 #             name = dest.name
 #             lat, lon = dest.lat, dest.lon
-            
-#             # Final Deadline Check for Reporting
+
+#             # Deadline check (both in hours)
 #             if arrival > dest.deadline_hours:
-#                 late_by = round(arrival - dest.deadline_hours, 1)
+#                 late_by = round(arrival - dest.deadline_hours, 2)
 #                 status = f"LATE (+{late_by}h)"
 #         else:
 #             status = "END"
-            
-#         departure = arrival + service
-        
+
+#         departure = arrival + service_hr
+
 #         schedule.append({
 #             "stop_id": loc_names[v],
 #             "stop_name": name,
@@ -187,36 +270,86 @@ def calculate_route_metrics(route_idxs, dests, source, dur_matrix, loc_map):
 #             "lon": lon,
 #             "status": status
 #         })
-        
-#         total_dist += dist
-#         total_time += (travel + service)
+
+#         total_dist += dist_km
+#         total_time += (travel_hr + service_hr)
 #         current_time = departure
-        
+
 #     return None, None, schedule, total_dist, total_time
-def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, loc_map):
-    """
-    Generate schedule where:
-    - dur_m contains durations in SECONDS (as returned by distance_matrix.get_distance_matrix)
-    - dist_m contains distances in KM
-    Returns: (None, None, schedule, total_dist_km, total_time_hours)
-    """
-    # Sanity check (durations should look like seconds, not tiny fractions)
-    try:
-        # if matrix has at least one non-zero entry, check magnitude
-        sample = next(t for row in dur_m for t in row if t is not None and t > 0)
-        assert sample > 10, "dur_matrix appears to be in seconds; expected >10"
-    except StopIteration:
-        pass
-    except AssertionError:
-        # continue anyway but helpful log
-        print("Warning: dur_matrix values look unusually small; check units.")
+# solver/baseline.py (final)
+from typing import List, Tuple
+from models import Location, Destination
+from utils.index_map import IndexMap
 
-    total_dist = 0.0           # in km
-    total_time = 0.0           # in hours
+LATENESS_PENALTY_WEIGHT = 2.0
+
+def solve_baseline(source: Location, destinations: List[Destination],
+                   dist_matrix: List[List[float]], dur_matrix: List[List[float]],
+                   index_map: IndexMap) -> Tuple[List[str], List[dict], float, float]:
+
+    dest_by_id = {d.id: d for d in destinations}
+    unvisited_ids = [d.id for d in destinations]
+
+    route_indices = [index_map.idx(source.id), index_map.idx(source.id)]
+
+    while unvisited_ids:
+        best_city_id = None
+        best_position = -1
+        min_score = float('inf')
+
+        for uid in unvisited_ids:
+            city_idx = index_map.idx(uid)
+            for i in range(1, len(route_indices)):
+                test_route = route_indices[:i] + [city_idx] + route_indices[i:]
+                total_time, total_lateness = calculate_route_metrics(test_route, dest_by_id, dur_matrix, index_map)
+                score = total_time + (LATENESS_PENALTY_WEIGHT * total_lateness)
+                if score < min_score:
+                    min_score = score
+                    best_position = i
+                    best_city_id = uid
+                elif abs(score - min_score) < 0.001:
+                    curr_obj = dest_by_id[uid]
+                    best_obj = dest_by_id[best_city_id]
+                    if curr_obj.priority < best_obj.priority:
+                        best_position = i
+                        best_city_id = uid
+
+        if best_city_id:
+            route_indices.insert(best_position, index_map.idx(best_city_id))
+            unvisited_ids.remove(best_city_id)
+        else:
+            break
+
+    _, _, final_schedule, total_dist, total_time = generate_final_stats(route_indices, destinations, source, dist_matrix, dur_matrix, index_map)
+    return [index_map.id(i) for i in route_indices], final_schedule, total_dist, total_time
+
+
+def calculate_route_metrics(route_idxs, dest_by_id, dur_matrix, index_map):
+    current_time = 0.0  # hours
+    total_lateness = 0.0
+    for i in range(len(route_idxs) - 1):
+        u, v = route_idxs[i], route_idxs[i + 1]
+        travel_sec = dur_matrix[u][v] if dur_matrix[u][v] is not None else 0.0
+        current_time += travel_sec / 3600.0
+
+        # map index -> id
+        v_id = index_map.id(v)
+        dest_obj = dest_by_id.get(v_id)
+        if dest_obj:
+            if current_time > dest_obj.deadline_hours:
+                total_lateness += (current_time - dest_obj.deadline_hours)
+            current_time += dest_obj.service_time_minutes / 60.0
+
+    return current_time, total_lateness
+
+
+def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, index_map):
+    # similar to previous generate_final_stats but using index_map for id lookups
+    total_dist = 0.0
+    total_time = 0.0
     schedule = []
-    current_time = 0.0         # in hours
+    current_time = 0.0
 
-    # 1. Start point
     schedule.append({
         "stop_id": source.id,
         "stop_name": source.name,
@@ -227,20 +360,18 @@ def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, lo
         "status": "START"
     })
 
-    # 2. Traverse legs
+    # dest lookup by id
+    dest_by_id = {d.id: d for d in dests}
+
     for i in range(len(route_idxs) - 1):
         u, v = route_idxs[i], route_idxs[i + 1]
-
-        # durations are seconds → convert to hours
-        travel_sec = dur_m[u][v]
-        travel_hr = (travel_sec / 3600.0) if travel_sec is not None else 0.0
-
+        travel_sec = dur_m[u][v] if dur_m[u][v] is not None else 0.0
+        travel_hr = travel_sec / 3600.0
         dist_km = dist_m[u][v] if dist_m and dist_m[u][v] is not None else 0.0
-
         arrival = current_time + travel_hr
 
-        # Find dest object (if v is a destination)
-        dest = next((d for d in dests if loc_map[d.id] == v), None)
+        v_id = index_map.id(v)
+        dest = dest_by_id.get(v_id)
 
         status = "OK"
         service_hr = 0.0
@@ -251,18 +382,15 @@ def generate_final_stats(route_idxs, dests, source, dist_m, dur_m, loc_names, lo
             service_hr = dest.service_time_minutes / 60.0
             name = dest.name
             lat, lon = dest.lat, dest.lon
-
-            # Deadline check (both in hours)
             if arrival > dest.deadline_hours:
-                late_by = round(arrival - dest.deadline_hours, 2)
-                status = f"LATE (+{late_by}h)"
+                status = f"LATE (+{round(arrival - dest.deadline_hours,2)}h)"
         else:
             status = "END"
 
         departure = arrival + service_hr
 
         schedule.append({
-            "stop_id": loc_names[v],
+            "stop_id": v_id,
             "stop_name": name,
             "arrival_time": round(arrival, 2),
             "departure_time": round(departure, 2),
