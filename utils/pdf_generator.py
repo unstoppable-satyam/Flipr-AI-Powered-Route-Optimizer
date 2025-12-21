@@ -80,9 +80,15 @@ def generate_pdf_bytes(report: dict) -> bytes:
     elements.append(Spacer(1, 8))
 
     # Summary
-    elements.append(Paragraph("<b>Executive Summary</b>", styles["Heading2"]))
+    # elements.append(Paragraph("<b>Executive Summary</b>", styles["Heading2"]))
+    elements.append(Paragraph("Executive Summary", styles["Heading2"]))
+
+    # summary_text = report.get("summary", "No summary provided.")
+    # elements.append(Paragraph(summary_text, styles["Normal"]))
     summary_text = report.get("summary", "No summary provided.")
+    summary_text = summary_text.replace("\n", "<br/>")
     elements.append(Paragraph(summary_text, styles["Normal"]))
+
     elements.append(Spacer(1, 12))
 
     # Table (Schedule)
@@ -112,7 +118,9 @@ def generate_pdf_bytes(report: dict) -> bytes:
     # Map image (optional)
     map_bytes = report.get("map_image_bytes")
     if map_bytes:
-        elements.append(Paragraph("<b>Route Map</b>", styles["Heading2"]))
+        # elements.append(Paragraph("<b>Route Map</b>", styles["Heading2"]))
+        elements.append(Paragraph("Route Map", styles["Heading2"]))
+
         img_buf = io.BytesIO(map_bytes)
         # keep width/height flexible; adjust as needed
         elements.append(Image(img_buf, width=400, height=300))

@@ -263,6 +263,428 @@
 #             st_folium(m, width=800, height=500)
 
 
+# # ////////////////////////////////
+# import streamlit as st
+# import requests
+# import folium
+# from streamlit_folium import st_folium
+# from folium import plugins
+# import pandas as pd
+
+# # ===================== CONFIG =====================
+# API_URL = "http://127.0.0.1:8000/optimize"
+# GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
+# REPORT_API_URL = "http://127.0.0.1:8000/generate-report"
+
+
+# HEADERS = {
+#     "User-Agent": "Flipr-Logistics-AI/1.0"
+# }
+
+# # ===================== INDIA-ONLY CITY VALIDATION =====================
+
+# def validate_city_india_only(city_name: str):
+#     """
+#     STRICT + PRACTICAL validation:
+#     ✔ Only real Indian cities / towns / capitals
+#     ❌ No cafes, shops, salons, streets
+#     ❌ No foreign city names mapped to Indian POIs
+#     """
+
+#     if not city_name or len(city_name.strip()) < 3:
+#         return False, None, None
+
+#     query = city_name.strip().lower()
+
+#     params = {
+#         "q": city_name.strip(),
+#         "format": "json",
+#         "limit": 10,
+#         "countrycodes": "in",
+#         "addressdetails": 1
+#     }
+
+#     try:
+#         r = requests.get(GEOCODE_URL, params=params, headers=HEADERS, timeout=5)
+#         data = r.json()
+
+#         if not data:
+#             return False, None, None
+
+#         for place in data:
+#             address = place.get("address", {})
+#             place_class = place.get("class", "")
+#             place_type = place.get("type", "")
+
+#             # 1️⃣ Must be India
+#             if address.get("country_code", "").lower() != "in":
+#                 continue
+
+#             # 2️⃣ Reject POIs (cafes, shops, roads)
+#             if place_class in ["amenity", "shop", "tourism", "leisure", "highway"]:
+#                 continue
+
+#             # 3️⃣ Allowed admin / city cases
+#             valid_place = (
+#                 (place_class == "place" and place_type in ["city", "town"]) or
+#                 (place_class == "boundary" and place_type == "administrative")
+#             )
+
+#             if not valid_place:
+#                 continue
+
+#             # 4️⃣ Extract best possible city name
+#             # returned_name = (
+#             #     address.get("city") or
+#             #     address.get("town") or
+#             #     address.get("state") or
+#             #     ""
+#             # ).lower()
+#             returned_name = (
+#                 address.get("city") or
+#                 address.get("city_district") or
+#                 address.get("municipality") or
+#                 address.get("town") or
+#                 address.get("county") or
+#                 address.get("state") or
+#                 ""
+#             ).lower()
+
+
+#             # 5️⃣ Exact match OR Delhi special-case
+#             # if returned_name != query:
+#             if query not in returned_name and returned_name not in query:
+
+#                 # allow Delhi / New Delhi cross-match
+#                 if not (
+#                     query in ["delhi", "new delhi"] and
+#                     returned_name in ["delhi", "new delhi"]
+#                 ):
+#                     continue
+
+#             lat = float(place["lat"])
+#             lon = float(place["lon"])
+
+#             return True, lat, lon
+
+#         return False, None, None
+
+#     except Exception:
+#         return False, None, None
+
+
+
+# # ===================== STREAMLIT CONFIG =====================
+# st.set_page_config(page_title="AI Route Optimizer", layout="wide")
+
+# if "destinations" not in st.session_state:
+#     st.session_state["destinations"] = []
+
+# if "optimization_result" not in st.session_state:
+#     st.session_state["optimization_result"] = None
+
+# st.title("🚛 AI-Powered Indian Route Optimizer")
+
+# if "csv_processed" not in st.session_state:
+#     st.session_state["csv_processed"] = False
+
+# if "csv_uploader_key" not in st.session_state:
+#     st.session_state["csv_uploader_key"] = 0
+    
+# if "last_csv_signature" not in st.session_state:
+#     st.session_state["last_csv_signature"] = None
+
+
+# # ===================== SIDEBAR =====================
+# with st.sidebar:
+#     st.header("1️⃣ Source City (India only)")
+
+#     source_input = st.text_input("Source City", "Delhi")
+#     valid_src, src_lat, src_lon = validate_city_india_only(source_input)
+
+#     if not valid_src:
+#         st.error("❌ Enter a valid Indian city")
+#     else:
+#         st.success(f"📍 Source OK ({src_lat:.2f}, {src_lon:.2f})")
+
+#     st.divider()
+
+#     st.header("2️⃣ Add Destination")
+#     st.subheader("📤 Upload Destinations via CSV")
+
+#     uploaded_file = st.file_uploader(
+#         "Upload CSV, JSON, or Excel file",
+#         type=["csv", "json", "xlsx", "xls"],
+#         key=f"uploader_{st.session_state['csv_uploader_key']}",
+#         help="CSV / JSON / Excel. Fields: city (required), priority, deadline_hours"
+#     )
+
+#     csv_signature = None
+#     if uploaded_file is not None:
+#         csv_signature = (uploaded_file.name, uploaded_file.size)
+
+#     if uploaded_file is not None and csv_signature != st.session_state["last_csv_signature"]:
+#         try:
+#             filename = uploaded_file.name.lower()
+
+#             # ---------- LOAD FILE ----------
+#             if filename.endswith(".csv"):
+#                 df = pd.read_csv(uploaded_file, header=None)
+
+#                 first_row = df.iloc[0].astype(str).str.lower().tolist()
+#                 has_header = "city" in first_row
+
+#                 uploaded_file.seek(0)
+
+#                 if has_header:
+#                     df = pd.read_csv(uploaded_file)
+#                 else:
+#                     df.columns = ["city", "priority", "deadline_hours"][:len(df.columns)]
+
+#             elif filename.endswith(".json"):
+#                 df = pd.read_json(uploaded_file)
+
+#             elif filename.endswith((".xlsx", ".xls")):
+#                 df = pd.read_excel(uploaded_file)
+
+#             else:
+#                 st.error("❌ Unsupported file format")
+#                 st.stop()
+
+#             # ---------- VALIDATE ----------
+#             if "city" not in df.columns:
+#                 st.error("❌ File must contain a 'city' column")
+#                 st.stop()
+
+#             added, updated, skipped = 0, 0, 0
+
+#             # ---------- PROCESS ----------
+#             for _, row in df.iterrows():
+#                 raw_city = str(row.get("city", "")).strip()
+#                 if not raw_city:
+#                     skipped += 1
+#                     continue
+
+#                 valid, lat, lon = validate_city_india_only(raw_city)
+#                 if not valid:
+#                     skipped += 1
+#                     continue
+
+#                 city_name = raw_city.title()
+#                 city_id = city_name.lower().replace(" ", "_")
+
+#                 priority = int(row.get("priority", 3)) if not pd.isna(row.get("priority", 3)) else 3
+#                 deadline = float(row.get("deadline_hours", 24)) if not pd.isna(row.get("deadline_hours", 24)) else 200.0
+
+#                 if city_id in [d["id"] for d in st.session_state["destinations"]]:
+#                     updated += 1
+#                 else:
+#                     st.session_state["destinations"].append({
+#                         "id": city_id,
+#                         "name": city_name,
+#                         "priority": priority,
+#                         "deadline_hours": deadline,
+#                         "lat": lat,
+#                         "lon": lon,
+#                         "service_time_minutes": 30
+#                     })
+#                     added += 1
+
+#             # ---------- FINALIZE ----------
+#             st.session_state["last_csv_signature"] = csv_signature
+#             st.session_state["csv_processed"] = True
+#             st.session_state["csv_uploader_key"] += 1
+
+#             st.success(f"✅ Imported → {added} added | {updated} updated | {skipped} skipped")
+
+#         except Exception as e:
+#             st.error(f"❌ Failed to read file: {e}")
+
+#     new_city = st.text_input("City Name")
+#     new_priority = st.selectbox("Priority", [1, 2, 3], index=2)
+#     new_deadline = st.number_input("Deadline (hrs)", min_value=1.0, value=200.0)
+
+#     if st.button("➕ Add Stop"):
+#         valid, lat, lon = validate_city_india_only(new_city)
+
+#         if not new_city:
+#             st.error("Please enter a city name")
+
+#         elif not valid:
+#             st.error("❌ Enter a valid Indian city")
+
+#         else:
+#             city_name = new_city.strip().title()
+#             city_id = city_name.lower().replace(" ", "_")
+
+#             if city_id in [d["id"] for d in st.session_state["destinations"]]:
+#                 st.warning("⚠️ City already added")
+#             else:
+#                 st.session_state["destinations"].append({
+#                     "id": city_id,
+#                     "name": city_name,
+#                     "priority": new_priority,
+#                     "deadline_hours": new_deadline,
+#                     "lat": lat,
+#                     "lon": lon,
+#                     "service_time_minutes": 30
+#                 })
+#                 st.success(f"✅ Added {city_name}")
+
+#     st.divider()
+
+#     st.header("3️⃣ Destinations List")
+
+#     for i, d in enumerate(st.session_state["destinations"]):
+#         c1, c2 = st.columns([3, 1])
+#         with c1:
+#             st.write(f"{i+1}. **{d['name']}** (P{d['priority']})")
+#         with c2:
+#             if st.button("❌", key=f"del_{i}"):
+#                 st.session_state["destinations"].pop(i)
+#                 st.rerun()
+
+#     if st.button("🗑️ Clear All"):
+#         st.session_state["destinations"] = []
+#         st.session_state["optimization_result"] = None
+#         st.session_state["csv_processed"] = False
+#         st.session_state["last_csv_signature"] = None
+#         st.session_state["csv_uploader_key"] += 1
+#         st.rerun()
+
+#     st.divider()
+
+#     if st.button("🚀 Optimize Route", type="primary"):
+#         if not valid_src:
+#             st.error("Invalid source city")
+
+#         elif not st.session_state["destinations"]:
+#             st.error("Add at least one destination")
+
+#         else:
+#             payload = {
+#                 "source": {
+#                     "id": source_input.lower().replace(" ", "_"),
+#                     "name": source_input,
+#                     "lat": src_lat,
+#                     "lon": src_lon
+#                 },
+#                 "destinations": st.session_state["destinations"],
+#                 "vehicle_speed_kmh": 60
+#             }
+
+#             with st.spinner("🤖 Optimizing..."):
+#                 res = requests.post(API_URL, json=payload)
+#                 if res.status_code == 200:
+#                     st.session_state["optimization_result"] = res.json()
+#                 else:
+#                     st.error(res.text)
+
+# # ===================== MAIN OUTPUT =====================
+# result = st.session_state["optimization_result"]
+
+# if result:
+#     c1, c2, c3 = st.columns(3)
+#     c1.metric("Total Distance", f"{result['total_distance_km']} km")
+#     c2.metric("Total Time", f"{result['total_time_hours']} hrs")
+#     c3.metric("Solver", result["solver_used"])
+
+#     st.success(result["summary"])
+#     st.divider()
+#     st.subheader("📄 Route Report")
+
+#     if st.button("📥 Generate & Download PDF"):
+#         report_payload = {
+#             "summary": result["summary"],
+#             "schedule": result["schedule"],
+#             "solver_used": result["solver_used"],
+#             "total_distance_km": result["total_distance_km"],
+#             "total_time_hours": result["total_time_hours"]
+#         }
+
+#         with st.spinner("📄 Generating report..."):
+#             res = requests.post(REPORT_API_URL, json=report_payload)
+
+#             if res.status_code == 200:
+#                 st.download_button(
+#                     label="⬇️ Download Route Report (PDF)",
+#                     data=res.content,
+#                     file_name="route_report.pdf",
+#                     mime="application/pdf"
+#                 )
+#             else:
+#                 st.error("❌ Report generation failed")
+
+
+#     col1, col2 = st.columns([2, 1])
+
+#     # with col2:
+#     #     st.subheader("📋 Schedule")
+#     #     st.dataframe(pd.DataFrame(result["schedule"]))
+#     with col2:
+#         st.subheader("📋 Schedule")
+
+#         schedule_df = pd.DataFrame(result["schedule"])
+
+#         # Map deadlines from destinations
+#         deadline_map = {
+#             d["id"]: d["deadline_hours"]
+#             for d in st.session_state["destinations"]
+#         }
+
+#         def compute_deadline_miss(row):
+#             stop_id = row["stop_id"]
+#             arrival = row["arrival_time"]
+
+#             # Source / end depot → no deadline
+#             if stop_id not in deadline_map:
+#                 return 0.0
+
+#             deadline = deadline_map[stop_id]
+#             return round(max(0, arrival - deadline), 2)
+
+#         schedule_df["deadline_missed_hrs"] = schedule_df.apply(
+#             compute_deadline_miss, axis=1
+#         )
+
+#         st.dataframe(schedule_df)
+
+
+#     with col1:
+#         st.subheader("🗺️ Route Map")
+
+#         route_coords = [
+#             [s["lat"], s["lon"]]
+#             for s in result["schedule"]
+#             if s["lat"] != 0 and s["lon"] != 0
+#         ]
+
+#         m = folium.Map(location=route_coords[0], zoom_start=5)
+
+#         total_stops = len(result["schedule"])
+
+#         for idx, s in enumerate(result["schedule"]):
+#             lat, lon = s["lat"], s["lon"]
+#             if lat == 0 or lon == 0:
+#                 continue
+
+#             if idx == 0:
+#                 color, icon = "red", "play"                 # SOURCE
+#             elif idx == total_stops - 1:
+#                 color, icon = "red", "flag-checkered"       # END
+#             else:
+#                 color, icon = "blue", "truck"               # DELIVERY
+
+#             folium.Marker(
+#                 [lat, lon],
+#                 popup=f"{idx}. {s['stop_name']}",
+#                 icon=folium.Icon(color=color, icon=icon, prefix="fa")
+#             ).add_to(m)
+
+#         folium.PolyLine(route_coords, weight=5, color="blue").add_to(m)
+#         st_folium(m, width=800, height=500)
+
+# ////////////////////
 
 import streamlit as st
 import requests
@@ -276,13 +698,11 @@ API_URL = "http://127.0.0.1:8000/optimize"
 GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
 REPORT_API_URL = "http://127.0.0.1:8000/generate-report"
 
-
 HEADERS = {
     "User-Agent": "Flipr-Logistics-AI/1.0"
 }
 
 # ===================== INDIA-ONLY CITY VALIDATION =====================
-
 def validate_city_india_only(city_name: str):
     """
     STRICT + PRACTICAL validation:
@@ -290,7 +710,6 @@ def validate_city_india_only(city_name: str):
     ❌ No cafes, shops, salons, streets
     ❌ No foreign city names mapped to Indian POIs
     """
-
     if not city_name or len(city_name.strip()) < 3:
         return False, None, None
 
@@ -333,13 +752,6 @@ def validate_city_india_only(city_name: str):
             if not valid_place:
                 continue
 
-            # 4️⃣ Extract best possible city name
-            # returned_name = (
-            #     address.get("city") or
-            #     address.get("town") or
-            #     address.get("state") or
-            #     ""
-            # ).lower()
             returned_name = (
                 address.get("city") or
                 address.get("city_district") or
@@ -350,12 +762,8 @@ def validate_city_india_only(city_name: str):
                 ""
             ).lower()
 
-
             # 5️⃣ Exact match OR Delhi special-case
-            # if returned_name != query:
             if query not in returned_name and returned_name not in query:
-
-                # allow Delhi / New Delhi cross-match
                 if not (
                     query in ["delhi", "new delhi"] and
                     returned_name in ["delhi", "new delhi"]
@@ -364,15 +772,12 @@ def validate_city_india_only(city_name: str):
 
             lat = float(place["lat"])
             lon = float(place["lon"])
-
             return True, lat, lon
 
         return False, None, None
 
     except Exception:
         return False, None, None
-
-
 
 # ===================== STREAMLIT CONFIG =====================
 st.set_page_config(page_title="AI Route Optimizer", layout="wide")
@@ -383,22 +788,50 @@ if "destinations" not in st.session_state:
 if "optimization_result" not in st.session_state:
     st.session_state["optimization_result"] = None
 
-st.title("🚛 AI-Powered Indian Route Optimizer")
-
 if "csv_processed" not in st.session_state:
     st.session_state["csv_processed"] = False
 
 if "csv_uploader_key" not in st.session_state:
     st.session_state["csv_uploader_key"] = 0
-    
+
 if "last_csv_signature" not in st.session_state:
     st.session_state["last_csv_signature"] = None
 
+st.title("🚛 AI-Powered Indian Route Optimizer")
+
+# ===================== HELPER: Onboarding / How-to =====================
+def show_how_to_use():
+    st.info("👋 Welcome — here’s how to use the AI Route Optimizer")
+    st.markdown("""
+### 🪜 Quick Start (in this order)
+
+**1) Source City**
+- Enter the starting city (India only). Example: *Delhi*
+
+**2) Add Destinations**
+- **Manual**: Type city name → set *Priority* (1=High,2=Med,3=Low) → set *Deadline (hrs)* → click **➕ Add Stop**
+- **Upload CSV/JSON/XLSX**: Use the uploader to import many stops at once.
+
+**CSV / Excel format (example)**:
+- Input columns `city`, `priority` and `deadline`.
+
+**3) Review & Edit**
+- Use the Destinations List to remove or clear stops.
+
+**4) Optimize**
+- Click **🚀 Optimize Route**. AI will compute route, schedule, and summary.
+
+**After Optimize**
+- You’ll see: AI Summary, Interactive Map, Schedule table and a button to **Download Route Report (PDF)**.
+
+---
+
+Tip: If you uploaded a file and nothing appears, check that the `city` column exists and spelled correctly.
+""")
 
 # ===================== SIDEBAR =====================
 with st.sidebar:
     st.header("1️⃣ Source City (India only)")
-
     source_input = st.text_input("Source City", "Delhi")
     valid_src, src_lat, src_lon = validate_city_india_only(source_input)
 
@@ -426,27 +859,20 @@ with st.sidebar:
     if uploaded_file is not None and csv_signature != st.session_state["last_csv_signature"]:
         try:
             filename = uploaded_file.name.lower()
-
             # ---------- LOAD FILE ----------
             if filename.endswith(".csv"):
                 df = pd.read_csv(uploaded_file, header=None)
-
                 first_row = df.iloc[0].astype(str).str.lower().tolist()
                 has_header = "city" in first_row
-
                 uploaded_file.seek(0)
-
                 if has_header:
                     df = pd.read_csv(uploaded_file)
                 else:
                     df.columns = ["city", "priority", "deadline_hours"][:len(df.columns)]
-
             elif filename.endswith(".json"):
                 df = pd.read_json(uploaded_file)
-
             elif filename.endswith((".xlsx", ".xls")):
                 df = pd.read_excel(uploaded_file)
-
             else:
                 st.error("❌ Unsupported file format")
                 st.stop()
@@ -457,7 +883,6 @@ with st.sidebar:
                 st.stop()
 
             added, updated, skipped = 0, 0, 0
-
             # ---------- PROCESS ----------
             for _, row in df.iterrows():
                 raw_city = str(row.get("city", "")).strip()
@@ -509,10 +934,8 @@ with st.sidebar:
 
         if not new_city:
             st.error("Please enter a city name")
-
         elif not valid:
             st.error("❌ Enter a valid Indian city")
-
         else:
             city_name = new_city.strip().title()
             city_id = city_name.lower().replace(" ", "_")
@@ -534,11 +957,18 @@ with st.sidebar:
     st.divider()
 
     st.header("3️⃣ Destinations List")
-
+    # for i, d in enumerate(st.session_state["destinations"]):
+    #     c1, c2 = st.columns([3, 1])
+    #     with c1:
+    #         st.write(f"{i+1}. {d['name']} (P{d['priority']})")
     for i, d in enumerate(st.session_state["destinations"]):
         c1, c2 = st.columns([3, 1])
         with c1:
-            st.write(f"{i+1}. **{d['name']}** (P{d['priority']})")
+            st.write(
+                f"{i+1}. **{d['name']}** "
+                f"(P{d['priority']}, {int(d['deadline_hours'])}h)"
+        )
+
         with c2:
             if st.button("❌", key=f"del_{i}"):
                 st.session_state["destinations"].pop(i)
@@ -557,10 +987,8 @@ with st.sidebar:
     if st.button("🚀 Optimize Route", type="primary"):
         if not valid_src:
             st.error("Invalid source city")
-
         elif not st.session_state["destinations"]:
             st.error("Add at least one destination")
-
         else:
             payload = {
                 "source": {
@@ -574,22 +1002,31 @@ with st.sidebar:
             }
 
             with st.spinner("🤖 Optimizing..."):
-                res = requests.post(API_URL, json=payload)
-                if res.status_code == 200:
-                    st.session_state["optimization_result"] = res.json()
-                else:
-                    st.error(res.text)
+                try:
+                    res = requests.post(API_URL, json=payload, timeout=60)
+                    if res.status_code == 200:
+                        st.session_state["optimization_result"] = res.json()
+                    else:
+                        st.error(res.text)
+                except Exception as e:
+                    st.error(f"Optimization failed: {e}")
 
 # ===================== MAIN OUTPUT =====================
 result = st.session_state["optimization_result"]
 
-if result:
+if result is None:
+    # Show onboarding steps until user runs optimization
+    show_how_to_use()
+else:
+    # RESULTS VIEW
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Distance", f"{result['total_distance_km']} km")
     c2.metric("Total Time", f"{result['total_time_hours']} hrs")
     c3.metric("Solver", result["solver_used"])
 
-    st.success(result["summary"])
+    # Summary (already generated by backend)
+    st.subheader("📝 AI Summary")
+    st.write(result["summary"])
     st.divider()
     st.subheader("📄 Route Report")
 
@@ -603,83 +1040,117 @@ if result:
         }
 
         with st.spinner("📄 Generating report..."):
-            res = requests.post(REPORT_API_URL, json=report_payload)
-
-            if res.status_code == 200:
-                st.download_button(
-                    label="⬇️ Download Route Report (PDF)",
-                    data=res.content,
-                    file_name="route_report.pdf",
-                    mime="application/pdf"
-                )
-            else:
-                st.error("❌ Report generation failed")
-
+            try:
+                res = requests.post(REPORT_API_URL, json=report_payload, timeout=30)
+                if res.status_code == 200:
+                    st.download_button(
+                        label="⬇️ Download Route Report (PDF)",
+                        data=res.content,
+                        file_name="route_report.pdf",
+                        mime="application/pdf"
+                    )
+                else:
+                    st.error("❌ Report generation failed")
+            except Exception as e:
+                st.error(f"Report generation failed: {e}")
 
     col1, col2 = st.columns([2, 1])
 
-    # with col2:
-    #     st.subheader("📋 Schedule")
-    #     st.dataframe(pd.DataFrame(result["schedule"]))
+    # Schedule panel
     with col2:
         st.subheader("📋 Schedule")
+        # schedule_df = pd.DataFrame(result["schedule"])
 
+        # # Map deadlines from destinations
+        # deadline_map = {
+        #     d["id"]: d["deadline_hours"]
+        #     for d in st.session_state["destinations"]
+        # }
+
+        # def compute_deadline_miss(row):
+        #     stop_id = row["stop_id"]
+        #     arrival = row["arrival_time"]
+        #     if stop_id not in deadline_map:
+        #         return 0.0
+        #     deadline = deadline_map[stop_id]
+        #     return round(max(0, arrival - deadline), 2)
+
+        # if not schedule_df.empty:
+        #     schedule_df["deadline_missed_hrs"] = schedule_df.apply(compute_deadline_miss, axis=1)
+        #     st.dataframe(schedule_df)
+        # else:
+        #     st.write("No schedule available.")
         schedule_df = pd.DataFrame(result["schedule"])
 
-        # Map deadlines from destinations
-        deadline_map = {
-            d["id"]: d["deadline_hours"]
-            for d in st.session_state["destinations"]
-        }
+        # ---------- deadline map (same as before) ----------
+        deadline_map = {d["id"]: d["deadline_hours"] for d in st.session_state["destinations"]}
 
         def compute_deadline_miss(row):
             stop_id = row["stop_id"]
-            arrival = row["arrival_time"]
-
-            # Source / end depot → no deadline
+            arrival = row["arrival_time"]  # hours (backend returns hours)
             if stop_id not in deadline_map:
                 return 0.0
+            return round(max(0, arrival - deadline_map[stop_id]), 2)
 
-            deadline = deadline_map[stop_id]
-            return round(max(0, arrival - deadline), 2)
+        # compute and attach (keeps original numeric columns for logic)
+        schedule_df["deadline_missed_hrs"] = schedule_df.apply(compute_deadline_miss, axis=1)
 
-        schedule_df["deadline_missed_hrs"] = schedule_df.apply(
-            compute_deadline_miss, axis=1
-        )
+        # ---------- Make a display copy and rename columns to show units ----------
+        display_df = schedule_df.rename(columns={
+            "arrival_time": "arrival_time (hours)",
+            "departure_time": "departure_time (hours)",
+            "deadline_missed_hrs": "deadline_missed (hours)"
+        })
 
-        st.dataframe(schedule_df)
+        # round numeric columns for clean UI
+        for col in ["arrival_time (hours)", "departure_time (hours)", "deadline_missed (hours)"]:
+            if col in display_df.columns:
+                display_df[col] = pd.to_numeric(display_df[col], errors="coerce").round(2)
 
+        # Optionally reorder columns for nicer presentation
+        cols = ["stop_id", "stop_name", "arrival_time (hours)", "departure_time (hours)", "deadline_missed (hours)", "lat", "lon", "status"]
+        display_cols = [c for c in cols if c in display_df.columns]
+        display_df = display_df[display_cols]
 
+        st.dataframe(display_df)    
+
+    # Map panel
     with col1:
         st.subheader("🗺️ Route Map")
-
         route_coords = [
-            [s["lat"], s["lon"]]
-            for s in result["schedule"]
-            if s["lat"] != 0 and s["lon"] != 0
+            [s.get("lat", 0), s.get("lon", 0)]
+            for s in result.get("schedule", [])
+            if s.get("lat", 0) != 0 and s.get("lon", 0) != 0
         ]
 
-        m = folium.Map(location=route_coords[0], zoom_start=5)
+        if not route_coords:
+            st.info("No valid coordinates available to render map.")
+        else:
+            try:
+                m = folium.Map(location=route_coords[0], zoom_start=5)
+                total_stops = len(result["schedule"])
 
-        total_stops = len(result["schedule"])
+                for idx, s in enumerate(result["schedule"]):
+                    lat, lon = s.get("lat", 0), s.get("lon", 0)
+                    if lat == 0 or lon == 0:
+                        continue
 
-        for idx, s in enumerate(result["schedule"]):
-            lat, lon = s["lat"], s["lon"]
-            if lat == 0 or lon == 0:
-                continue
+                    if idx == 0:
+                        color, icon = "red", "play"                 # SOURCE
+                    elif idx == total_stops - 1:
+                        color, icon = "red", "flag-checkered"       # END
+                    else:
+                        color, icon = "blue", "truck"               # DELIVERY
 
-            if idx == 0:
-                color, icon = "red", "play"                 # SOURCE
-            elif idx == total_stops - 1:
-                color, icon = "red", "flag-checkered"       # END
-            else:
-                color, icon = "blue", "truck"               # DELIVERY
+                    folium.Marker(
+                        [lat, lon],
+                        popup=f"{idx}. {s.get('stop_name', '')}",
+                        icon=folium.Icon(color=color, icon=icon, prefix="fa")
+                    ).add_to(m)
 
-            folium.Marker(
-                [lat, lon],
-                popup=f"{idx}. {s['stop_name']}",
-                icon=folium.Icon(color=color, icon=icon, prefix="fa")
-            ).add_to(m)
+                folium.PolyLine(route_coords, weight=5, color="blue").add_to(m)
+                st_folium(m, width=800, height=500)
+            except Exception as e:
+                st.error(f"Failed to render map: {e}")
+# build dataframe from API response (keep this for computations)
 
-        folium.PolyLine(route_coords, weight=5, color="blue").add_to(m)
-        st_folium(m, width=800, height=500)
