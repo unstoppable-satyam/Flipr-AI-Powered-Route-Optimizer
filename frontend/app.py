@@ -274,6 +274,8 @@ import pandas as pd
 # ===================== CONFIG =====================
 API_URL = "http://127.0.0.1:8000/optimize"
 GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
+REPORT_API_URL = "http://127.0.0.1:8000/generate-report"
+
 
 HEADERS = {
     "User-Agent": "Flipr-Logistics-AI/1.0"
@@ -588,6 +590,31 @@ if result:
     c3.metric("Solver", result["solver_used"])
 
     st.success(result["summary"])
+    st.divider()
+    st.subheader("📄 Route Report")
+
+    if st.button("📥 Generate & Download PDF"):
+        report_payload = {
+            "summary": result["summary"],
+            "schedule": result["schedule"],
+            "solver_used": result["solver_used"],
+            "total_distance_km": result["total_distance_km"],
+            "total_time_hours": result["total_time_hours"]
+        }
+
+        with st.spinner("📄 Generating report..."):
+            res = requests.post(REPORT_API_URL, json=report_payload)
+
+            if res.status_code == 200:
+                st.download_button(
+                    label="⬇️ Download Route Report (PDF)",
+                    data=res.content,
+                    file_name="route_report.pdf",
+                    mime="application/pdf"
+                )
+            else:
+                st.error("❌ Report generation failed")
+
 
     col1, col2 = st.columns([2, 1])
 

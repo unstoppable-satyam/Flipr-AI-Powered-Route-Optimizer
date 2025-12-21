@@ -5,6 +5,9 @@ import hashlib
 from haversine import haversine, Unit
 from typing import List, Dict, Tuple
 from models import Location
+import tempfile
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # CONFIG
 ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjgyZTAyNGUwMzc2YTQyODU4YmJkMmYzNjQ1ZjM0NDQ4IiwiaCI6Im11cm11cjY0In0=" # <--- ENSURE THIS IS VALID
@@ -77,9 +80,13 @@ def geocode_city(city_name: str) -> Tuple[float, float]:
     print(f"⚠️ Failed to geocode {city_name}. Defaulting to 0,0.")
     return 0.0, 0.0
 
+# def get_cache_key(locations: List[Location]) -> str:
+#     loc_ids = sorted([loc.id for loc in locations])
+#     return hashlib.md5("_".join(loc_ids).encode()).hexdigest()
 def get_cache_key(locations: List[Location]) -> str:
-    loc_ids = sorted([loc.id for loc in locations])
-    return hashlib.md5("_".join(loc_ids).encode()).hexdigest()
+    # Use order-preserving key (matrix depends on order)
+    loc_ids = [loc.id for loc in locations]
+    return hashlib.md5("__".join(loc_ids).encode()).hexdigest()
 
 def load_cache() -> Dict:
     if os.path.exists(CACHE_FILE):
@@ -87,9 +94,9 @@ def load_cache() -> Dict:
             return json.load(f)
     return {}
 
-def save_cache(cache_data: Dict):
-    with open(CACHE_FILE, "w") as f:
-        json.dump(cache_data, f)
+# def save_cache(cache_data: Dict):
+#     with open(CACHE_FILE, "w") as f:
+#         json.dump(cache_data, f)
 
 def calculate_haversine_matrix(locations: List[Location], speed_kmh: float) -> Tuple[List[List[float]], List[List[float]]]:
     n = len(locations)
@@ -108,36 +115,82 @@ def calculate_haversine_matrix(locations: List[Location], speed_kmh: float) -> T
             
     return dist_matrix, time_matrix
 
+# def get_distance_matrix(locations: List[Location], speed_kmh: float = 60.0):
+#     cache = load_cache()
+#     key = get_cache_key(locations)
+    
+#     if key in cache:
+#         print("✅ Using Cached Matrix")
+#         return cache[key]["distances"], cache[key]["durations"]
+
+#     print("🌍 Fetching Matrix from ORS...")
+#     coords = [[loc.lon, loc.lat] for loc in locations]
+    
+#     headers = {
+#         'Accept': 'application/json',
+#         'Authorization': ORS_API_KEY,
+#         'Content-Type': 'application/json'
+#     }
+#     body = {"locations": coords, "metrics": ["distance", "duration"]}
+    
+#     try:
+#         response = requests.post('https://api.openrouteservice.org/v2/matrix/driving-car', 
+#                                  json=body, headers=headers)
+        
+#         if response.status_code == 200:
+#             data = response.json()
+#             # Convert meters -> km, seconds -> hours
+#             distances = [[d / 1000.0 if d is not None else 0 for d in row] for row in data['distances']]
+#             # durations = [[t / 3600.0 if t is not None else 0 for t in row] for row in data['durations']]
+#             durations = [[t if t is not None else 0 for t in row] for row in data['durations']]
+
+            
+#             cache[key] = {"distances": distances, "durations": durations}
+#             save_cache(cache)
+#             return distances, durations
+#         else:
+#             print(f"⚠️ ORS Matrix Error {response.status_code}: {response.text}")
+#     except Exception as e:
+#         print(f"⚠️ API Exception: {e}")
+
+#     print("⚠️ Using Haversine Fallback")
+#     return calculate_haversine_matrix(locations, speed_kmh)
+
+def save_cache(cache_data: Dict):
+    tmp = CACHE_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(cache_data, f)
+    os.replace(tmp, CACHE_FILE)  # atomic-ish replace
+
 def get_distance_matrix(locations: List[Location], speed_kmh: float = 60.0):
     cache = load_cache()
     key = get_cache_key(locations)
-    
     if key in cache:
         print("✅ Using Cached Matrix")
         return cache[key]["distances"], cache[key]["durations"]
 
     print("🌍 Fetching Matrix from ORS...")
     coords = [[loc.lon, loc.lat] for loc in locations]
-    
+
     headers = {
         'Accept': 'application/json',
         'Authorization': ORS_API_KEY,
         'Content-Type': 'application/json'
     }
     body = {"locations": coords, "metrics": ["distance", "duration"]}
-    
+
+    # requests session with retry/backoff
+    session = requests.Session()
+    retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+
     try:
-        response = requests.post('https://api.openrouteservice.org/v2/matrix/driving-car', 
-                                 json=body, headers=headers)
-        
+        response = session.post('https://api.openrouteservice.org/v2/matrix/driving-car',
+                                 json=body, headers=headers, timeout=15)
         if response.status_code == 200:
             data = response.json()
-            # Convert meters -> km, seconds -> hours
             distances = [[d / 1000.0 if d is not None else 0 for d in row] for row in data['distances']]
-            # durations = [[t / 3600.0 if t is not None else 0 for t in row] for row in data['durations']]
             durations = [[t if t is not None else 0 for t in row] for row in data['durations']]
-
-            
             cache[key] = {"distances": distances, "durations": durations}
             save_cache(cache)
             return distances, durations
