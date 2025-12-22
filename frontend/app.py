@@ -285,20 +285,111 @@ HEADERS = {
 }
 
 # ===================== INDIA-ONLY CITY VALIDATION =====================
+# def validate_city_india_only(city_name: str):
+#     """
+#     STRICT + PRACTICAL validation:
+#     ✔ Only real Indian cities / towns / capitals
+#     ❌ No cafes, shops, salons, streets
+#     ❌ No foreign city names mapped to Indian POIs
+#     """
+#     if not city_name or len(city_name.strip()) < 3:
+#         return False, None, None
+
+#     query = city_name.strip().lower()
+
+#     params = {
+#         "q": city_name.strip(),
+#         "format": "json",
+#         "limit": 10,
+#         "countrycodes": "in",
+#         "addressdetails": 1
+#     }
+
+#     try:
+#         r = requests.get(GEOCODE_URL, params=params, headers=HEADERS, timeout=5)
+#         data = r.json()
+
+#         if not data:
+#             return False, None, None
+
+#         for place in data:
+#             address = place.get("address", {})
+#             place_class = place.get("class", "")
+#             place_type = place.get("type", "")
+
+#             # 1️⃣ Must be India
+#             if address.get("country_code", "").lower() != "in":
+#                 continue
+
+#             # 2️⃣ Reject POIs (cafes, shops, roads)
+#             if place_class in ["amenity", "shop", "tourism", "leisure", "highway"]:
+#                 continue
+
+#             # 3️⃣ Allowed admin / city cases
+#             valid_place = (
+#                 (place_class == "place" and place_type in ["city", "town"]) or
+#                 (place_class == "boundary" and place_type == "administrative")
+#             )
+
+#             if not valid_place:
+#                 continue
+
+#             returned_name = (
+#                 address.get("city") or
+#                 address.get("city_district") or
+#                 address.get("municipality") or
+#                 address.get("town") or
+#                 address.get("county") or
+#                 address.get("state") or
+#                 ""
+#             ).lower()
+
+#             # 5️⃣ Exact match OR Delhi special-case
+#             if query not in returned_name and returned_name not in query:
+#                 if not (
+#                     query in ["delhi", "new delhi"] and
+#                     returned_name in ["delhi", "new delhi"]
+#                 ):
+#                     continue
+
+#             lat = float(place["lat"])
+#             lon = float(place["lon"])
+#             return True, lat, lon
+
+#         return False, None, None
+
+#     except Exception:
+#         return False, None, None
+
+def normalize_city_name(name: str) -> str:
+    """Normalize common Indian city aliases"""
+    name = name.lower().strip()
+
+    aliases = {
+        "bangalore": "bengaluru",
+        "bengaluru": "bengaluru",
+        "madras": "chennai",
+        "calcutta": "kolkata",
+        "trivandrum": "thiruvananthapuram"
+    }
+
+    return aliases.get(name, name)
+
+
 def validate_city_india_only(city_name: str):
     """
-    STRICT + PRACTICAL validation:
-    ✔ Only real Indian cities / towns / capitals
-    ❌ No cafes, shops, salons, streets
-    ❌ No foreign city names mapped to Indian POIs
+    PRACTICAL + ROBUST validation:
+    ✔ Accept Indian cities/towns even if district/state differs
+    ✔ Case-insensitive
+    ✔ Handles Bangalore/Bengaluru etc.
     """
     if not city_name or len(city_name.strip()) < 3:
         return False, None, None
 
-    query = city_name.strip().lower()
+    query = normalize_city_name(city_name)
 
     params = {
-        "q": city_name.strip(),
+        "q": city_name,
         "format": "json",
         "limit": 10,
         "countrycodes": "in",
@@ -317,40 +408,20 @@ def validate_city_india_only(city_name: str):
             place_class = place.get("class", "")
             place_type = place.get("type", "")
 
-            # 1️⃣ Must be India
+            # Must be India
             if address.get("country_code", "").lower() != "in":
                 continue
 
-            # 2️⃣ Reject POIs (cafes, shops, roads)
+            # Reject POIs
             if place_class in ["amenity", "shop", "tourism", "leisure", "highway"]:
                 continue
 
-            # 3️⃣ Allowed admin / city cases
-            valid_place = (
-                (place_class == "place" and place_type in ["city", "town"]) or
+            # Accept cities, towns, districts, administrative regions
+            if not (
+                (place_class == "place" and place_type in ["city", "town", "village"]) or
                 (place_class == "boundary" and place_type == "administrative")
-            )
-
-            if not valid_place:
+            ):
                 continue
-
-            returned_name = (
-                address.get("city") or
-                address.get("city_district") or
-                address.get("municipality") or
-                address.get("town") or
-                address.get("county") or
-                address.get("state") or
-                ""
-            ).lower()
-
-            # 5️⃣ Exact match OR Delhi special-case
-            if query not in returned_name and returned_name not in query:
-                if not (
-                    query in ["delhi", "new delhi"] and
-                    returned_name in ["delhi", "new delhi"]
-                ):
-                    continue
 
             lat = float(place["lat"])
             lon = float(place["lon"])
