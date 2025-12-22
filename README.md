@@ -179,6 +179,8 @@ Hyderabad,1,36
 | `POST` | `/recalculate` | **Dynamic route recalculation.** Supports add/remove stops and priority updates using fast repair + GA refinement. |
 | `POST` | `/generate-report` | Generates and returns a downloadable PDF report. |
 
+![Pipeline](assets/Backend_APIs.png)
+- Backend APIs
 ---
 
 ## 🔁 Overall System Architecture
