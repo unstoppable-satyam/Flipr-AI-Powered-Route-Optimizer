@@ -395,7 +395,7 @@ def show_how_to_use():
 - **Upload CSV/JSON/XLSX**: Use the uploader to import many stops at once.
 
 **CSV / Excel format (example)**:
-- Input columns `city`, `priority` and `deadline`.
+- Input columns `city`, `priority` and `deadline_hours`.
 
 **JSON format**:
 - city, priority and deadline_hours are required
