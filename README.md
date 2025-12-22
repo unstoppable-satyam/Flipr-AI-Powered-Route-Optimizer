@@ -5,6 +5,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-Repo-blue?logo=github)](https://github.com/unstoppable-satyam/Flipr-AI-Powered-Route-Optimizer)
 
 **Live demo:** [https://flipr-ai-powered-route-optimizer-nmzsqnmbxdcav9chch6mrv.streamlit.app/](https://flipr-ai-powered-route-optimizer-nmzsqnmbxdcav9chch6mrv.streamlit.app/)
+**Interactive API (Swagger UI):** [https://flipr-ai-powered-route-optimizer.onrender.com/docs#/](https://flipr-ai-powered-route-optimizer.onrender.com/docs#/)
 
 ---
 
