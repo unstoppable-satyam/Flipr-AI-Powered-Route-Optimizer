@@ -183,6 +183,85 @@ The system uses a two-stage design for live updates:
 
 ---
 
+## 🔁 Overall System Architecture
+<details> <summary>🔍 Click to reveal flow explanation</summary>
+
+The process begins with a Client Request for optimization. The backend receives this request and performs Auto Geocoding to convert city names into coordinates. It then calculates a Distance & Duration Matrix between all points. An IndexMap is created for efficient lookups, followed by a Feasibility Check to ensure deadlines can be met.
+
+The core solving starts with a Baseline Solver (Cheapest Insertion).
+
+If there are 1 or fewer destinations, the baseline result is returned immediately.
+
+Otherwise, a Genetic Algorithm Solver is initialized, seeded with the baseline solution. The system compares the AI result with the baseline; if the AI is better, it's used. Finally, a Trip Summary is generated, and the Final Optimized Response is sent back to the client.
+
+</details>
+
+## 🔁 🧠 Solver Logic
+Baseline Heuristic (Cheapest Insertion)
+<details> <summary>🔍 Click to reveal flow explanation</summary>
+
+This is a fast, greedy algorithm used for an initial solution or quick repairs.
+
+Initialize Route: Starts with a route from source to source. All destinations are marked as unvisited.
+
+Iteration Loop: While unvisited destinations exist, the algorithm iterates through each one.
+
+Insertion Trial: For each unvisited destination, it tries inserting it at every possible position in the current route.
+
+Simulation & Scoring: For each insertion, the route is simulated to compute total travel time and lateness. A Score is calculated (time + lateness penalty).
+
+Selection: The insertion with the minimum score is chosen. Ties are broken by higher priority.
+
+Update: The best insertion is made permanent, and the destination is marked as visited. The process repeats until all are visited.
+
+Finalize: Once complete, the final schedule, route, distance, and time are returned.
+
+</details>
+
+## 🔁 Genetic Algorithm (AI Solver)
+<details> <summary>🔍 Click to reveal flow explanation</summary>
+
+The Genetic Algorithm is used to refine the solution and escape local optima.
+
+Initialization: An Initial Population of routes is created. It's seeded with the baseline route and supplemented with random permutations.
+
+Evolution Loop: The algorithm runs for a set number of generations or a time limit.
+
+Fitness Evaluation: Each chromosome (route) is evaluated based on lateness, priority penalties, and total time.
+
+Sorting & Elitism: The population is sorted, and the best individuals are carried over unchanged to the next generation.
+
+Selection, Crossover & Mutation: Parents are selected via tournaments. New offspring are created using Order Crossover and then subject to Swap Mutation to introduce variation.
+
+Result: After the loop finishes, the Best Chromosome Ever Seen is selected.
+
+Finalize: The final route (source -> chromosome -> source) is built, and the schedule and metrics are generated.
+
+</details>
+
+##  🔁 Dynamic Recalculation Engine
+<details> <summary>🔍 Click to reveal flow explanation</summary>
+
+This engine handles real-time updates while a trip is in progress.
+
+Recalculation Request: A request is received with an event (add/remove/update stop).
+
+Freeze Visited Stops: All stops that have already been visited are locked and will not be moved.
+
+Apply Event: The requested change is applied to the list of remaining destinations.
+
+Stage 1 - Baseline Solver: A fast recomputation is performed on only the remaining destinations using the baseline heuristic.
+
+Stage 2 - Optional Genetic Solver: If there are enough remaining destinations, the Genetic Solver is run to potentially improve the route further. The better route between Stage 1 and Stage 2 is chosen.
+
+Merge & Adjust: The frozen visited stops are merged with the new optimized route for the future stops. The schedule's timing is adjusted based on the current time.
+
+Return: The updated route and schedule are returned.
+
+</details>
+
+
+
 ## 🗂 Repository Structure & File Roles
 
 ```text
