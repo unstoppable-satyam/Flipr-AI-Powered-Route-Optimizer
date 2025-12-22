@@ -174,10 +174,10 @@ Hyderabad,1,36
 ## 🔌 API Overview
 
 | Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/optimize` | **Core optimization endpoint.** Returns route sequence, schedule, total stats, summary, and feasibility report. |
-| `POST` | `/recalculate` | **Dynamic route recalculation.** Supports add/remove stops and priority updates using fast repair + GA refinement. |
-| `POST` | `/generate-report` | Generates and returns a downloadable PDF report. |
+| :--- | :--- | :--- |
+| `POST` | [`/optimize`](https://docs.google.com/document/d/1_u02KnTo9xeRo-eycf5z3F3byjzpZrMvcqoJOyDySUM/edit?usp=sharing) | **Core optimization endpoint.** Returns route sequence, schedule, total stats, summary, and feasibility report. |
+| `POST` | [`/recalculate`](https://docs.google.com/document/d/1Rm04uC8KG8WVSBmJ2qe5NwzU0aWAz8jEmp1dy3iUoc4/edit?usp=sharing) | **Dynamic route recalculation.** Supports add/remove stops and priority updates using fast repair + GA refinement. |
+| `POST` | [`/generate-report`](https://docs.google.com/document/d/1_qhth1fXnk0eFHYqNmWwct5EQWXQyFdYr32AyyklRSs/edit?usp=sharing) | Generates and returns a downloadable PDF report. |
 
 ![Pipeline](assets/Backend_APIs.png)
 - Backend APIs
