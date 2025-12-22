@@ -1,208 +1,255 @@
-🚚 Flipr Hackathon 30.2: AI-Powered Multi-City Route Optimization System
 
-GitHub Repository: https://github.com/unstoppable-satyam/Flipr-AI-Powered-Route-Optimizer
+# 🚚 Flipr — AI-Powered Multi-City Route Optimizer
 
-📌 Project Overview
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://flipr-ai-powered-route-optimizer-nmzsqnmbxdcav9chch6mrv.streamlit.app/)
+[![GitHub](https://img.shields.io/badge/GitHub-Repo-blue?logo=github)](https://github.com/unstoppable-satyam/Flipr-AI-Powered-Route-Optimizer)
 
-This project is an intelligent logistics system designed to optimize delivery routes for multi-city transport operations. Unlike basic GPS, this system accounts for priority orders, strict delivery deadlines, and service times. It features a Hybrid Solver (Baseline Heuristic + Genetic Algorithm) to ensure the most efficient route is found.
+**Live demo:** [https://flipr-ai-powered-route-optimizer-nmzsqnmbxdcav9chch6mrv.streamlit.app/](https://flipr-ai-powered-route-optimizer-nmzsqnmbxdcav9chch6mrv.streamlit.app/)
 
-Key Features
+---
 
-🧠 AI-Powered Routing: Uses Genetic Algorithms to beat standard heuristics.
+## 🔥 Project One-Liner
+A hybrid route optimizer for Indian multi-city deliveries combining a **fast baseline heuristic** (cheapest insertion) with an **AI Genetic Algorithm**. Features include **dynamic recalculation**, **PDF reporting**, and an **interactive Streamlit + Folium dashboard**.
 
-⚡ Dynamic Recalculation: Handle real-time events like new orders or cancellations while the truck is en route.
+---
 
-📝 PDF Reporting: Auto-generates professional reports with AI summaries.
+## 📋 Table of Contents
+- [Why this project](#-why-this-project)
+- [Quick Start (Run Locally)](#-quick-start-run-locally)
+- [Environment Variables](#-environment-variables-env)
+- [Frontend Usage](#-frontend-usage-user-flow)
+- [Input File Formats](#-input-file-formats)
+- [API Overview](#-api-overview)
+- [Dynamic Recalculation Engine](#-dynamic-recalculation-engine)
+- [Repository Structure](#-repository-structure--file-roles)
+- [Testing & Benchmarking](#-testing--benchmarking)
+- [Deployment Notes](#-deployment-notes)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing & Contact](#-contributing--contact)
 
-🗺️ Interactive Dashboard: Visualizes routes on a map using Streamlit & Folium.
+---
 
-⚙️ Setup & Installation
+## 💡 Why This Project?
+- **Real-world logistics constraints:** Handles priority levels, delivery deadlines, service times, and depot returns.
+- **Hybrid optimization:** Instant results via baseline heuristic, improved quality via Genetic Algorithm.
+- **Dynamic updates:** Handle live events (add/remove/update stops) while the vehicle is en route.
+- **Professional outputs:** AI-generated summaries (Gemini with fallback) and downloadable PDF reports.
+- **Clean visualization:** Interactive map, schedule table, and metrics dashboard.
 
-⚠️ Important: Python Version Warning
+---
 
-Do NOT use Python 3.14.
-This project relies on libraries (like numpy and pandas) that may have compatibility issues with Python 3.14.
-✅ Recommended Versions: Python 3.10 or 3.12.
+## ⚡ Quick Start (Run Locally)
 
-1. Create a Virtual Environment
+> **Note:** Use **Python 3.10 or 3.12**. Avoid Python 3.14 due to library incompatibilities.
 
-It is highly recommended to run this project in a virtual environment to avoid conflicts.
+### 1️⃣ Clone the repository
+```bash
+git clone [https://github.com/unstoppable-satyam/Flipr-AI-Powered-Route-Optimizer](https://github.com/unstoppable-satyam/Flipr-AI-Powered-Route-Optimizer)
+cd Flipr-AI-Powered-Route-Optimizer
 
-<details>
-<summary><b>🍎 For Mac / Linux Users (Click to Expand)</b></summary>
+```
 
-Open Terminal and navigate to the project folder.
+### 2️⃣ Create & activate a virtual environment
 
-Create the environment:
+**macOS / Linux:**
 
+```bash
 python3.12 -m venv venv
-
-
-Activate it:
-
 source venv/bin/activate
 
+```
 
-</details>
+**Windows (PowerShell):**
 
-<details>
-<summary><b>🪟 For Windows Users (Click to Expand)</b></summary>
-
-Open Command Prompt (cmd) or PowerShell.
-
-Create the environment:
-
+```powershell
 python -m venv venv
+.\venv\Scripts\Activate.ps1
 
+```
 
-Activate it:
+### 3️⃣ Install dependencies
 
-venv\Scripts\activate
-
-
-</details>
-
-2. Install Dependencies
-
-Once your virtual environment is active, install the required packages:
-
+```bash
 pip install -r requirements.txt
 
+```
 
-3. Set Up Environment Variables
+### 4️⃣ Start the backend
 
-Create a .env file in the root directory and add your API keys:
-
-ORS_API_KEY=your_openrouteservice_key_here
-GEMINI_API_KEY=your_google_gemini_key_here
-
-
-ORS_API_KEY: Get it free from OpenRouteService.
-
-GEMINI_API_KEY: Get it free from Google AI Studio.
-
-🚀 How to Run the Application
-
-You need to run the Backend and Frontend in two separate terminals.
-
-Terminal 1: Start the Backend API
-
+```bash
 uvicorn main:app --reload
 
+```
 
-The API will start at http://127.0.0.1:8000
+*API runs at: `http://127.0.0.1:8000*`
 
-Terminal 2: Start the Frontend Dashboard
+### 5️⃣ Start the frontend
 
+```bash
 streamlit run frontend/app.py
 
+```
 
-The dashboard will open in your browser automatically.
+*Streamlit opens automatically in your browser.*
 
-📚 API Documentation (Deep Dive)
+---
 
-The backend exposes three main endpoints. Click the toggles below to see detailed specifications.
+## 🔒 Environment Variables (.env)
 
-<details>
-<summary><b>🔹 POST /optimize (Core Route Calculation)</b></summary>
+Create a `.env` file in the project root:
 
-Description: Calculates the optimal route sequence, total time, and distance for a given set of destinations.
+```ini
+ORS_API_KEY=your_openrouteservice_key_here
+GEMINI_API_KEY_1=your_gemini_key_1
+GEMINI_API_KEY_2=your_gemini_key_2
 
-URL: /optimize
+```
 
-Method: POST
+**Notes:**
 
-Request Body Example:
+* `ORS_API_KEY` is **required** for distance matrix and geocoding.
+* Gemini keys are **optional**; if unavailable or quota-exhausted, the app falls back to deterministic summaries.
 
-{
-  "source": { "id": "delhi", "name": "Delhi" },
-  "destinations": [
-    {
-      "id": "jaipur",
-      "name": "Jaipur",
-      "priority": 1,
-      "deadline_hours": 6.0,
-      "service_time_minutes": 45
-    },
-    { "id": "agra", "name": "Agra", "priority": 2 }
-  ],
-  "vehicle_speed_kmh": 65.0
-}
+---
+
+## compass Frontend Usage (User Flow)
+
+1. **Source City:** Enter a valid Indian city (case-insensitive, alias-aware).
+2. **Add Destinations:**
+* Manual entry with priority (1–3) and deadline (hours).
+* Upload CSV / JSON / Excel for bulk import.
 
 
-Key Response Fields:
-
-route_sequence: Ordered list of city IDs.
-
-schedule: Detailed timeline with arrival/departure times.
-
-summary: AI-generated explanation of the route.
-
-solver_used: Indicates if "Baseline" or "AI Evolutionary" was used.
-
-</details>
-
-<details>
-<summary><b>🔹 POST /recalculate (Dynamic Updates)</b></summary>
-
-Description: Handles real-time updates (like adding a stop) while the vehicle is already moving. It ensures the truck continues from its current location but eventually returns to the original depot.
-
-URL: /recalculate
-
-Method: POST
-
-Request Body Example:
-
-{
-  "source": { "id": "delhi", "name": "Delhi" },
-  "visited_stop_ids": ["delhi", "agra"],
-  "current_time_hours": 3.5,
-  "remaining_destinations": [
-    { "id": "jaipur", "name": "Jaipur" }
-  ],
-  "event": {
-    "type": "ADD_DESTINATION",
-    "payload": {
-      "name": "Mathura",
-      "priority": 1,
-      "deadline_hours": 6.0
-    }
-  }
-}
+3. **Review Destinations:** View, remove, or clear destinations in the sidebar list.
+4. **Optimize Route:** Click `🚀 Optimize Route` to compute:
+* Route sequence
+* Schedule with arrival/departure times (hours)
+* Total distance & time
+* AI or fallback summary
+* Interactive route map
 
 
-How it Works:
+5. **Download Report:** Generate a professional PDF report with summary and schedule.
 
-Identifies Current Location from visited_stop_ids.
+---
 
-Applies the event (Add/Remove stops).
+## 📂 Input File Formats
 
-Re-optimizes the remaining route.
+### CSV / Excel
 
-Stitches the history + new path + return leg.
+* **Required column:** `city`
+* **Optional columns:** `priority`, `deadline_hours`
 
-</details>
+**Example:**
 
-<details>
-<summary><b>🔹 POST /generate-report (PDF Export)</b></summary>
+```csv
+city,priority,deadline_hours
+Jaipur,2,48
+Indore,3,72
+Hyderabad,1,36
 
-Description: Generates a downloadable PDF report with the route summary and schedule table.
+```
 
-URL: /generate-report
+### JSON
 
-Method: POST
+```json
+[
+  {"city": "Roorkee", "priority": 2, "deadline_hours": 1},
+  {"city": "Jaipur"}
+]
 
-Request Body:
+```
 
-{
-  "title": "Route Plan",
-  "summary": "AI Generated summary text...",
-  "schedule": [ ...list of stop objects... ]
-}
+---
+
+## 🔌 API Overview
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/optimize` | **Core optimization endpoint.** Returns route sequence, schedule, total stats, summary, and feasibility report. |
+| `POST` | `/recalculate` | **Dynamic route recalculation.** Supports add/remove stops and priority updates using fast repair + GA refinement. |
+| `POST` | `/generate-report` | Generates and returns a downloadable PDF report. |
+
+---
+
+## 🔁 Dynamic Recalculation Engine
+
+The system uses a two-stage design for live updates:
+
+1. **Stage 1 — Fast Baseline Repair:** Cheapest insertion on remaining stops (milliseconds).
+2. **Stage 2 — Bounded Genetic Algorithm (Optional):** Short, time-limited GA seeded with baseline output.
+
+> **Note:** Visited stops remain frozen; only the future route is recalculated.
+
+---
+
+## 🗂 Repository Structure & File Roles
+
+```text
+main/
+├── main.py                 # FastAPI app & API endpoints
+├── models.py               # Pydantic request/response models
+└── distance_matrix.py      # ORS matrix + haversine fallback
+
+frontend/
+└── app.py                  # Streamlit UI, validation, map & schedule rendering
+
+solver/
+├── baseline.py             # Cheapest insertion heuristic
+└── genetic.py              # Genetic Algorithm optimizer
+
+utils/
+├── index_map.py            # ID ↔ index mapping
+├── feasibility.py          # Feasibility checks
+├── summary_generator.py    # Gemini-based summary with fallback
+└── pdf_generator.py        # PDF report creation
+
+tests/
+├── benchmark.py            # Performance benchmarking (5/10/20+ cities)
+└── edge_cases.py           # Edge case testing
+
+```
+
+---
+
+## 🧪 Testing & Benchmarking
+
+Use `tests/benchmark.py` to:
+
+* Measure response time.
+* Test scalability (5, 10, 20+ cities).
+* Identify bottlenecks (ORS calls, solver time).
+
+*Results are output as a CSV for reporting.*
+
+---
+
+## ☁️ Deployment Notes
+
+* **Backend:** Can be deployed on Render / Railway.
+* **Frontend:** Can be deployed on Streamlit Cloud.
+* **Configuration:**
+* Ensure frontend `API_URL` points to the deployed backend `/optimize`.
+* Set environment variables directly in the hosting platform dashboard.
 
 
-Response: Binary PDF file stream.
 
-</details>
+---
 
-Made with ❤️ for Flipr Hackathon 30.2
+## 🛠 Troubleshooting
+
+* **City not accepted?** Try `City, State, India` format.
+* **Gemini quota exceeded?** Summary falls back automatically to deterministic text.
+* **Slow performance?** ORS matrix calls dominate execution time; caching is enabled to mitigate this.
+* **404 / detail not found?** Check the frontend API endpoint URL configuration.
+
+---
+
+## 🤝 Contributing & Contact
+
+Contributions are welcome via PRs and issues.
+
+**Authors:** Satyam Kumar, Lavisha Kapoor, Pushpendra Singh, Priyanshu 
+**Contact Email:** satyamsks999000@gmail.com
+
+*Made with ❤️ for Flipr Hackathon 30.2*
