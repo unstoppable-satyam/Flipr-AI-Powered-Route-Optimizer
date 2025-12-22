@@ -538,7 +538,13 @@ from utils.pdf_generator import generate_pdf_bytes
 
 
 app = FastAPI(title="Logistics AI Optimizer")
-
+@app.get("/")
+def health_check():
+    return {
+        "status": "healthy",
+        "message": "Flipr Route Optimizer API is active 🚀",
+        "docs": "/docs"
+    }
 
 # ===============================
 # OPTIMIZATION API
