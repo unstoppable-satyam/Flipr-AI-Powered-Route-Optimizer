@@ -172,17 +172,6 @@ Hyderabad,1,36
 
 ---
 
-## 🔁 Dynamic Recalculation Engine
-
-The system uses a two-stage design for live updates:
-
-1. **Stage 1 — Fast Baseline Repair:** Cheapest insertion on remaining stops (milliseconds).
-2. **Stage 2 — Bounded Genetic Algorithm (Optional):** Short, time-limited GA seeded with baseline output.
-
-> **Note:** Visited stops remain frozen; only the future route is recalculated.
-
----
-
 ## 🔁 Overall System Architecture
 <details> <summary>🔍 Click to reveal flow explanation</summary>
 
