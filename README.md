@@ -173,6 +173,8 @@ Hyderabad,1,36
 ---
 
 ## 🔁 Overall System Architecture
+![Pipeline](assets/flowchart.png)
+
 <details> <summary>🔍 Click to reveal flow explanation</summary>
 
 The process begins with a Client Request for optimization. The backend receives this request and performs Auto Geocoding to convert city names into coordinates. It then calculates a Distance & Duration Matrix between all points. An IndexMap is created for efficient lookups, followed by a Feasibility Check to ensure deadlines can be met.
@@ -186,6 +188,7 @@ Otherwise, a Genetic Algorithm Solver is initialized, seeded with the baseline s
 </details>
 
 ## 🔁 🧠 Solver Logic
+![Pipeline](assets/baseline.png)
 Baseline Heuristic (Cheapest Insertion)
 <details> <summary>🔍 Click to reveal flow explanation</summary>
 
@@ -208,6 +211,7 @@ Finalize: Once complete, the final schedule, route, distance, and time are retur
 </details>
 
 ## 🔁 Genetic Algorithm (AI Solver)
+![Pipeline](assets/generative_2.png)
 <details> <summary>🔍 Click to reveal flow explanation</summary>
 
 The Genetic Algorithm is used to refine the solution and escape local optima.
@@ -229,6 +233,7 @@ Finalize: The final route (source -> chromosome -> source) is built, and the sch
 </details>
 
 ##  🔁 Dynamic Recalculation Engine
+![Pipeline](assets/recal_flow.png)
 <details> <summary>🔍 Click to reveal flow explanation</summary>
 
 This engine handles real-time updates while a trip is in progress.
