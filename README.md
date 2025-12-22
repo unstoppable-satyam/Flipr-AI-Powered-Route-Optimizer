@@ -205,29 +205,4 @@ Response: Binary PDF file stream.
 
 </details>
 
-📂 Project Structure
-
-├── frontend/
-│   └── app.py              # Streamlit Dashboard
-├── solver/
-│   ├── baseline.py         # Heuristic Solver (Cheapest Insertion)
-│   ├── genetic.py          # AI Solver (Genetic Algorithm)
-│   └── recalculation.py    # Dynamic Update Logic
-├── utils/
-│   ├── distance_matrix.py  # Map API Integration
-│   ├── summary_generator.py# LLM Text Generation
-│   └── pdf_generator.py    # ReportLab PDF Creator
-├── main.py                 # FastAPI Backend
-├── requirements.txt        # Dependencies
-└── README.md               # Documentation
-
-
-🔮 Future Improvements
-
-Real-time Traffic: Integrate Google Maps Traffic API for live delays.
-
-Multi-Vehicle Support: Scale the Genetic Algorithm to handle fleets (VRP).
-
-Driver Mobile App: A React Native app for drivers to view live routes.
-
 Made with ❤️ for Flipr Hackathon 30.2
