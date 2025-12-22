@@ -275,7 +275,8 @@ from folium import plugins
 import pandas as pd
 
 # ===================== CONFIG =====================
-API_URL = "https://flipr-ai-powered-route-optimizer.onrender.com/docs#/default/optimize_route_optimize_post"
+API_URL = "API_URL = "https://flipr-ai-powered-route-optimizer.onrender.com/optimize"
+REPORT_API_URL = "https://flipr-ai-powered-route-optimizer.onrender.com/generate-report""
 GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
 REPORT_API_URL = "http://127.0.0.1:8000/generate-report"
 
