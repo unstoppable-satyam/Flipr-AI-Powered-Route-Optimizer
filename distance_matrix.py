@@ -9,9 +9,30 @@ import tempfile
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+# # CONFIG
+
+import requests
+import json
+import os
+import hashlib
+from haversine import haversine, Unit
+from typing import List, Dict, Tuple
+from models import Location
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 # CONFIG
-ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjgyZTAyNGUwMzc2YTQyODU4YmJkMmYzNjQ1ZjM0NDQ4IiwiaCI6Im11cm11cjY0In0=" # <--- ENSURE THIS IS VALID
+ORS_API_KEY = os.getenv("ORS_API_KEY")
 CACHE_FILE = "matrix_cache.json"
+
+if not ORS_API_KEY:
+    raise RuntimeError("❌ ORS_API_KEY not found in .env file")
+
+# CACHE_FILE = "matrix_cache.json"
 
 # --- EXPANDED LOCAL GEOCODER (Faster & Safer than API) ---
 KNOWN_CITIES = {

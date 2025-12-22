@@ -1,116 +1,3 @@
-# import random
-
-# def generate_trip_summary(source_name, destinations, route_seq, total_dist, total_time, solver_type, schedule):
-#     """
-#     Generates a professional logistics summary explaining the route decisions.
-#     """
-    
-#     # 1. Analyze Priorities
-#     high_priority_cities = [d.name for d in destinations if d.priority == 1]
-    
-#     # 2. Analyze Lateness
-#     late_stops = []
-#     for stop in schedule:
-#         if "LATE" in stop.get('status', ''):
-#             late_stops.append(stop['stop_name'])
-            
-#     # 3. Construct the Narrative
-#     intro = f"Optimized route starting from {source_name} covering {len(destinations)} destinations."
-    
-#     # Efficiency Highlight
-#     if "AI" in solver_type:
-#         solver_text = "The AI Evolutionary Algorithm was selected as it found a more efficient path than the baseline heuristic."
-#     else:
-#         solver_text = "The Standard Heuristic was sufficient to find the optimal path quickly."
-        
-#     # Priority Explanation
-#     priority_text = ""
-#     if high_priority_cities:
-#         cities_str = ", ".join(high_priority_cities[:3]) # List max 3
-#         priority_text = f"Priority was given to urgent deliveries in {cities_str}."
-        
-#     # Deadline Warning
-#     deadline_text = "All deliveries are on schedule."
-#     if late_stops:
-#         late_str = ", ".join(late_stops[:2])
-#         deadline_text = f"⚠️ Note: Due to strict time windows, delays are expected at: {late_str}."
-
-#     # Final Stats
-#     stats_text = f"Total trip distance is {total_dist} km with an estimated duration of {total_time} hours."
-
-#     # Combine
-#     full_summary = f"{intro} {priority_text} {deadline_text} {solver_text} {stats_text}"
-    
-#     return full_summary
-
-# utils/summary_generator.py
-
-# utils/summary_generator.py
-# import os
-# import traceback
-# from dotenv import load_dotenv
-# from google import genai
-
-# load_dotenv()
-# # genai.Client() auto-reads GEMINI_API_KEY environment variable
-# client = genai.Client()
-
-# # default model - update after you run list_models()
-# DEFAULT_MODEL = "gemini-2.5-flash"  # change to the exact id you found from list_models()
-
-# def fallback_summary(source_name, destinations, route_seq, total_dist, total_time, solver_type, schedule):
-#     high_priority = [getattr(d, "name", d) for d in destinations if getattr(d, "priority", None) == 1]
-#     late_stops = [s["stop_name"] for s in schedule if "LATE" in s.get("status", "")]
-#     intro = f"Route from {source_name} covering {len(destinations)} stops."
-#     priority_text = f"Priority: {', '.join(high_priority)}." if high_priority else ""
-#     late_text = f"Late at: {', '.join(late_stops)}." if late_stops else "All deliveries on schedule."
-#     stats = f"Total distance {total_dist} km; duration {total_time} hours. Solver: {solver_type}."
-#     return " ".join([intro, priority_text, late_text, stats])
-
-# def generate_trip_summary(source_name, destinations, route_seq, total_dist, total_time, solver_type, schedule, model_id=None, max_length=200):
-#     """
-#     Generate a human-friendly summary. Uses Gemini if available; otherwise returns fallback text.
-#     model_id: override default model name from list_models() output.
-#     """
-#     if model_id is None:
-#         model_id = DEFAULT_MODEL
-
-#     high_priority = [getattr(d, "name", d) for d in destinations if getattr(d, "priority", None) == 1]
-#     late_stops = [s["stop_name"] for s in schedule if "LATE" in s.get("status", "")]
-
-#     prompt = f"""
-# You are a logistics optimization expert. Write a short (2-4 sentences) business-ready summary.
-
-# Source: {source_name}
-# Route: {route_seq}
-# High priority cities: {high_priority}
-# Late deliveries: {late_stops}
-# Total distance: {total_dist} km
-# Total time: {total_time} hours
-# Solver used: {solver_type}
-
-# Explain the main routing decisions, priorities handled, and any deadline issues.
-# """
-
-#     try:
-#         response = client.models.generate_content(
-#             model=model_id,
-#             contents=prompt
-#         )
-#         # Response extraction - different SDK versions may differ; .text works commonly:
-#         text = getattr(response, "text", None)
-#         if not text:
-#             # fallback to string representation if text not present
-#             text = str(response)
-#         # Trim length if needed
-#         return text.strip()[:max_length] if text else fallback_summary(source_name, destinations, route_seq, total_dist, total_time, solver_type, schedule)
-
-#     except Exception as e:
-#         # Helpful debug logs
-#         print("LLM call failed:", str(e))
-#         traceback.print_exc()
-#         print("Tip: run a 'list_models' script and set DEFAULT_MODEL to a supported model id (like 'gemini-2.5-flash').")
-#         return fallback_summary(source_name, destinations, route_seq, total_dist, total_time, solver_type, schedule)
 
 
 # utils/summary_generator.py
@@ -246,20 +133,262 @@
 #             f"Total estimated time: {round(total_time, 2)} hours"
 #         )
 
+# import os
+# from dotenv import load_dotenv
+
+# load_dotenv()
+
+# # -----------------------------
+# # Optional Gemini client
+# # -----------------------------
+# try:
+#     from google import genai
+#     GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+#     client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
+# except Exception:
+#     client = None
+# import os
+# from dotenv import load_dotenv
+# from google import genai
+
+# API_KEYS = [
+#     os.getenv("GEMINI_API_KEY_1"),
+#     os.getenv("GEMINI_API_KEY_2"),
+# ]
+# API_KEYS = [k for k in API_KEYS if k]
+
+
+# def call_gemini_with_fallback(prompt: str):
+#     """
+#     Try Gemini with multiple API keys.
+#     Returns text or None.
+#     """
+#     for key in API_KEYS:
+#         try:
+#             client = genai.Client(api_key=key)
+
+#             response = client.models.generate_content(
+#                 model="models/gemini-2.5-flash",
+#                 contents=prompt
+#             )
+
+#             if hasattr(response, "text") and response.text.strip():
+#                 return response.text.replace("**", "").strip()
+
+#         except Exception as e:
+#             print(f"⚠️ Gemini key failed ({key[:6]}...): {e}")
+#             continue
+
+#     return None
+
+
+# def generate_trip_summary(
+#     source_name,
+#     destinations,
+#     route_seq,
+#     total_dist,
+#     total_time,
+#     solver_type,
+#     schedule
+# ):
+#     """
+#     LLM-first summary generator.
+#     If LLM fails, deterministic summary is returned.
+#     """
+
+#     # -----------------------------
+#     # Common helpers
+#     # -----------------------------
+#     id_to_name = {d.id: d.name for d in destinations}
+
+#     def name(x):
+#         return id_to_name.get(x, str(x))
+
+#     late_stops = {
+#         s.get("stop_name")
+#         for s in schedule
+#         if "LATE" in s.get("status", "")
+#     }
+
+#     high_priority = [d.name for d in destinations if d.priority == 1]
+
+#     route_pretty = " → ".join(name(r) for r in route_seq)
+
+#     # -----------------------------
+#     # LLM PROMPT (PRIMARY)
+#     # -----------------------------
+#     # if client:
+#     client = get_genai_client()
+
+#     if client:
+
+#         try:
+#             prompt = f"""
+# You are a logistics optimization expert.
+
+# Write a clear, professional report using ONLY plain text.
+# Do NOT use markdown, bullets, bold symbols, dates, or numbering.
+
+# Structure the report EXACTLY as:
+
+# Overview:
+# Routing Decisions & Rationale:
+# Performance Summary:
+
+# Explain routing decisions leg-by-leg in an impressive, business-style manner.
+
+# Data:
+# Source: {source_name}
+# Route sequence: {route_pretty}
+# High priority cities: {high_priority}
+# Late delivery risk cities: {list(late_stops)}
+# Total distance: {round(total_dist,2)} km
+# Total time: {round(total_time,2)} hours
+# Solver used: {solver_type}
+# """
+
+#             response = client.models.generate_content(
+#                 model="models/gemini-2.5-flash",
+#                 contents=prompt
+#             )
+
+#             if hasattr(response, "text") and response.text.strip():
+#                 return response.text.replace("**", "").strip()
+
+#         except Exception as e:
+#             print("⚠️ LLM failed, using fallback summary:", str(e))
+            
+
+#     # -----------------------------
+#     # DETERMINISTIC FALLBACK (GUARANTEED)
+#     # -----------------------------
+#     summary = []
+
+#     summary.append("Overview")
+#     summary.append(
+#         f"The route starts from {source_name} and covers {len(route_seq)-1} destinations."
+#     )
+#     summary.append("")
+
+#     summary.append("Routing Decisions & Rationale")
+#     summary.append(
+#         f"The final route sequence, {route_pretty}, "
+#         "was designed to balance geographic efficiency with operational priorities."
+#     )
+#     summary.append("")
+
+#     for i in range(len(route_seq) - 1):
+#         frm = name(route_seq[i])
+#         to = name(route_seq[i + 1])
+
+#         dest_obj = next((d for d in destinations if d.name == to), None)
+
+#         if i == len(route_seq) - 2 and to == source_name:
+#             label = "Route Completion"
+#             rationale = (
+#                 f"The final leg returns the vehicle to {source_name}, "
+#                 "completing the delivery cycle efficiently."
+#             )
+#         elif dest_obj and dest_obj.priority == 1:
+#             label = "Priority Fulfillment"
+#             rationale = (
+#                 f"{to} was identified as a high-priority destination. "
+#                 "Visiting it early ensures timely service and reduces risk."
+#             )
+#         elif to in late_stops:
+#             label = "Late Delivery Mitigation"
+#             rationale = (
+#                 f"{to} was scheduled earlier in the route to provide "
+#                 "additional buffer time and improve on-time performance."
+#             )
+#         else:
+#             label = "Strategic Positioning"
+#             rationale = (
+#                 f"The transition from {frm} to {to} follows a logical "
+#                 "geographic progression, minimizing travel overhead."
+#             )
+
+#         summary.append(f"{frm} → {to} ({label})")
+#         summary.append(f"Rationale: {rationale}")
+#         summary.append("")
+
+#     summary.append("Performance Summary")
+#     summary.append(f"Total distance: {round(total_dist,2)} km")
+#     summary.append(f"Total estimated time: {round(total_time,2)} hours")
+#     summary.append(f"Solver used: {solver_type}")
+
+#     return "\n".join(summary)
+# summary_generator.py
 import os
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# -----------------------------
-# Optional Gemini client
-# -----------------------------
+# Optional import (safe)
 try:
     from google import genai
-    GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-    client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 except Exception:
-    client = None
+    genai = None
+
+# Use exactly these two environment variables (you said you have two keys)
+API_KEYS = [
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+]
+API_KEYS = [k for k in API_KEYS if k]  # keep only non-empty
+
+
+def call_gemini_with_fallback(prompt: str, model: str = "models/gemini-2.5-flash"):
+    """
+    Try Gemini (genai) using the two API keys in rotation.
+    For each key we do a small number of retries with exponential backoff.
+    Returns the text response on success, or None on final failure.
+    """
+    if not genai:
+        # genai package not installed
+        print("⚠️ genai package not available; skipping LLM call.")
+        return None
+
+    if not API_KEYS:
+        # no keys configured
+        print("⚠️ No GEMINI_API_KEY_1 / GEMINI_API_KEY_2 configured; skipping LLM call.")
+        return None
+
+    for key in API_KEYS:
+        if not key:
+            continue
+
+        # attempt per-key with small retries
+        attempts = 2
+        backoff = 0.5
+        for attempt in range(1, attempts + 1):
+            try:
+                client = genai.Client(api_key=key)
+                response = client.models.generate_content(model=model, contents=prompt)
+
+                if hasattr(response, "text") and isinstance(response.text, str) and response.text.strip():
+                    masked = (key[:6] + "...") if len(key) > 6 else key
+                    print(f"✅ Gemini succeeded with key {masked}")
+                    return response.text.replace("**", "").strip()
+
+                # empty response — treat as failure
+                raise ValueError("empty LLM response")
+
+            except Exception as e:
+                masked = (key[:6] + "...") if len(key) > 6 else "unknown"
+                print(f"⚠️ Attempt {attempt} failed for key {masked}: {e}")
+                if attempt < attempts:
+                    time.sleep(backoff)
+                    backoff *= 2
+                else:
+                    # move to next key
+                    print(f"⏭️ Moving to next key after {attempts} attempts for {masked}")
+                    break
+
+    # all keys exhausted
+    print("❌ All Gemini keys exhausted or failed. Falling back to deterministic summary.")
+    return None
 
 
 def generate_trip_summary(
@@ -272,12 +401,12 @@ def generate_trip_summary(
     schedule
 ):
     """
-    LLM-first summary generator.
-    If LLM fails, deterministic summary is returned.
+    LLM-first summary generator. Uses two API keys with retries.
+    If all fails (or genai missing), returns the deterministic fallback summary.
     """
 
     # -----------------------------
-    # Common helpers
+    # Helpers & derived values
     # -----------------------------
     id_to_name = {d.id: d.name for d in destinations}
 
@@ -290,16 +419,14 @@ def generate_trip_summary(
         if "LATE" in s.get("status", "")
     }
 
-    high_priority = [d.name for d in destinations if d.priority == 1]
+    high_priority = [d.name for d in destinations if getattr(d, "priority", 3) == 1]
 
     route_pretty = " → ".join(name(r) for r in route_seq)
 
     # -----------------------------
-    # LLM PROMPT (PRIMARY)
+    # Build LLM prompt
     # -----------------------------
-    if client:
-        try:
-            prompt = f"""
+    prompt = f"""
 You are a logistics optimization expert.
 
 Write a clear, professional report using ONLY plain text.
@@ -323,73 +450,65 @@ Total time: {round(total_time,2)} hours
 Solver used: {solver_type}
 """
 
-            response = client.models.generate_content(
-                model="models/gemini-2.5-flash",
-                contents=prompt
-            )
+    # -----------------------------
+    # Try LLM (multi-key) first
+    # -----------------------------
+    llm_text = call_gemini_with_fallback(prompt) if genai and API_KEYS else None
 
-            if hasattr(response, "text") and response.text.strip():
-                return response.text.replace("**", "").strip()
-
-        except Exception as e:
-            print("⚠️ LLM failed, using fallback summary:", str(e))
+    if llm_text:
+        return llm_text.replace("**", "").strip()
 
     # -----------------------------
-    # DETERMINISTIC FALLBACK (GUARANTEED)
+    # Deterministic fallback
     # -----------------------------
-    summary = []
-
-    summary.append("Overview")
-    summary.append(
-        f"The route starts from {source_name} and covers {len(route_seq)-1} destinations."
+    summary_lines = []
+    summary_lines.append("Overview")
+    summary_lines.append(
+        f"The route starts from {source_name} and covers {max(0, len(route_seq)-1)} destinations."
     )
-    summary.append("")
+    summary_lines.append("")
 
-    summary.append("Routing Decisions & Rationale")
-    summary.append(
-        f"The final route sequence, {route_pretty}, "
-        "was designed to balance geographic efficiency with operational priorities."
+    summary_lines.append("Routing Decisions & Rationale")
+    summary_lines.append(
+        f"The final route sequence, {route_pretty}, was designed to balance geographic efficiency with operational priorities."
     )
-    summary.append("")
+    summary_lines.append("")
 
     for i in range(len(route_seq) - 1):
         frm = name(route_seq[i])
         to = name(route_seq[i + 1])
 
-        dest_obj = next((d for d in destinations if d.name == to), None)
+        # find destination object by id
+        dest_obj = next((d for d in destinations if d.id == route_seq[i+1] or d.name == to), None)
 
         if i == len(route_seq) - 2 and to == source_name:
             label = "Route Completion"
             rationale = (
-                f"The final leg returns the vehicle to {source_name}, "
-                "completing the delivery cycle efficiently."
+                f"The final leg returns the vehicle to {source_name}, completing the delivery cycle efficiently."
             )
-        elif dest_obj and dest_obj.priority == 1:
+        elif dest_obj and getattr(dest_obj, "priority", 3) == 1:
             label = "Priority Fulfillment"
             rationale = (
-                f"{to} was identified as a high-priority destination. "
-                "Visiting it early ensures timely service and reduces risk."
+                f"{to} was identified as a high-priority destination. Visiting it early ensures timely service and reduces risk."
             )
         elif to in late_stops:
             label = "Late Delivery Mitigation"
             rationale = (
-                f"{to} was scheduled earlier in the route to provide "
-                "additional buffer time and improve on-time performance."
+                f"{to} was scheduled earlier in the route to provide additional buffer time and improve on-time performance."
             )
         else:
             label = "Strategic Positioning"
             rationale = (
-                f"The transition from {frm} to {to} follows a logical "
-                "geographic progression, minimizing travel overhead."
+                f"The transition from {frm} to {to} follows a logical geographic progression, minimizing travel overhead."
             )
 
-        summary.append(f"{frm} → {to} ({label})")
-        summary.append(f"Rationale: {rationale}")
-        summary.append("")
+        summary_lines.append(f"{frm} → {to} ({label})")
+        summary_lines.append(f"Rationale: {rationale}")
+        summary_lines.append("")
 
-    summary.append("Performance Summary")
-    summary.append(f"Total distance: {round(total_dist,2)} km")
-    summary.append(f"Total estimated time: {round(total_time,2)} hours")
-    summary.append(f"Solver used: {solver_type}")
+    summary_lines.append("Performance Summary")
+    summary_lines.append(f"Total distance: {round(total_dist,2)} km")
+    summary_lines.append(f"Total estimated time: {round(total_time,2)} hours")
+    summary_lines.append(f"Solver used: {solver_type}")
 
-    return "\n".join(summary)
+    return "\n".join(summary_lines)
