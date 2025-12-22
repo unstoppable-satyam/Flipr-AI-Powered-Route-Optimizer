@@ -10,6 +10,7 @@
 
 ## 🔥 Project One-Liner
 A hybrid route optimizer for Indian multi-city deliveries combining a **fast baseline heuristic** (cheapest insertion) with an **AI Genetic Algorithm**. Features include **dynamic recalculation**, **PDF reporting**, and an **interactive Streamlit + Folium dashboard**.
+![Pipeline](assets/working_example.png)
 
 ---
 
