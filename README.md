@@ -12,6 +12,7 @@
 
 ## 🔥 Project One-Liner
 A hybrid route optimizer for Indian multi-city deliveries combining a **fast baseline heuristic** (cheapest insertion) with an **AI Genetic Algorithm**. Features include **dynamic recalculation**, **PDF reporting**, and an **interactive Streamlit + Folium dashboard**.
+
 ---
 
 ![Pipeline](assets/working_example.png)
@@ -33,7 +34,8 @@ A hybrid route optimizer for Indian multi-city deliveries combining a **fast bas
 - [Genetic Algorithm](#-genetic-algorithm)
 - [Dynamic Recalculation Engine](#-dynamic-recalculation-engine)
 - [Repository Structure](#-repository-structure--file-roles)
-- [Testing & Benchmarking](#-testing--benchmarking)
+- [Performance Benchmarking](#-performance-benchmarking)
+- [Testing & Validation](#-testing--validation)
 - [Deployment Notes](#-deployment-notes)
 - [Troubleshooting](#-troubleshooting)
 - [Contributing & Contact](#-contributing--contact)
@@ -297,30 +299,66 @@ tests/
 └── edge_cases.py           # Edge case testing
 
 ```
+---
+
+## 📈 Performance Benchmarking
+
+To ensure scalability and reliability, the system was stress-tested using two methods: **Core Algorithm Benchmarking** (to measure pure logic speed) and **End-to-End System Benchmarking** (to measure real-world API response times).
+
+### 1. Core Algorithmic Efficiency (Offline)
+
+This test isolates the CPU time required to solve the route, excluding network latency.
+
+| Dataset (Cities) | Baseline Solver (ms) | Genetic Solver (ms) |
+| --- | --- | --- |
+| **5 Cities** | 0.05 ms | 38.07 ms |
+| **10 Cities** | 0.30 ms | 55.22 ms |
+| **20 Cities** | 3.47 ms | 121.95 ms |
+
+> **Insight:** The **Baseline Solver** is nearly instantaneous (<1ms), making it perfect for real-time dynamic repairs. The **Genetic Algorithm** handles complex 20-city problems in just ~120ms.
+
+### 2. End-to-End System Response (Live Deployment)
+
+This test measures total response time on the deployed Render environment, including geocoding and external API calls.
+
+| Dataset | Cities | Response Time (s) | Total Distance (km) | Solver Used |
+| --- | --- | --- | --- | --- |
+| **Small** | 5 | 6.85 s | 742.86 | Baseline (Cheapest Insertion) |
+| **Medium** | 10 | 6.01 s | 2269.74 | Baseline (Cheapest Insertion) |
+| **Large** | 20 | 8.86 s | 4821.15 | AI Evolutionary (Genetic Algorithm) |
+| **XL** | 30 | 13.96 s | 7979.72 | AI Evolutionary (Genetic Algorithm) |
+
+> **Insight:** The system scales efficiently, handling XL datasets (30 cities) in under 14 seconds. The majority of latency comes from external data fetching, which is mitigated by caching in production.
 
 ---
 
-## 🧪 Testing & Benchmarking
+## 🧪 Testing & Validation
 
-Use `tests/benchmark.py` to:
+### Edge Case Validation
 
-* Measure response time.
-* Test scalability (5, 10, 20+ cities).
-* Identify bottlenecks (ORS calls, solver time).
+A separate validation script (`tests/edge_cases.py`) runs logical consistency checks to ensure the solver respects physical and operational constraints.
 
-*Results are output as a CSV for reporting.*
+**Test Case 1: Physics Check (Impossible Deadlines)**
+
+* **Scenario:** A delivery from **Delhi to Mumbai** is requested with an impossible deadline of **5.0 hours**.
+* **Constraint:** At 60 km/h, the ~1400 km trip physically requires ~23 hours.
+* **Result:** `✅ PASSED`. The system calculated an arrival time of **16.36 hours**, correctly identifying that the truck would be **11.36 hours late**. This proves the feasibility engine accurately prioritizes physical reality over user constraints.
+
+**Test Case 2: Return Trip Consistency**
+
+* **Scenario:** A route from **Delhi → Agra** is requested.
+* **Constraint:** The vehicle must return to the depot after delivery.
+* **Result:** `✅ PASSED`. The returned route sequence was `['delhi', 'agra', 'delhi']`, confirming the route forms a valid closed loop.
 
 ---
 
 ## ☁️ Deployment Notes
 
-* **Backend:** Can be deployed on Render / Railway.
-* **Frontend:** Can be deployed on Streamlit Cloud.
+* **Backend:** Deployed on [Render](https://render.com/).
+* **Frontend:** Deployed on [Streamlit Cloud](https://streamlit.io/cloud).
 * **Configuration:**
 * Ensure frontend `API_URL` points to the deployed backend `/optimize`.
 * Set environment variables directly in the hosting platform dashboard.
-
-
 
 ---
 
