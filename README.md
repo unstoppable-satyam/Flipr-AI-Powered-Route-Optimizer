@@ -276,10 +276,11 @@ Return: The updated route and schedule are returned.
 ## 🗂 Repository Structure & File Roles
 
 ```text
-main/
-├── main.py                 # FastAPI app & API endpoints
-├── models.py               # Pydantic request/response models
-└── distance_matrix.py      # ORS matrix + haversine fallback
+
+── main.py                 # FastAPI app & API endpoints
+── models.py               # Pydantic request/response models
+── distance_matrix.py      # ORS matrix + haversine fallback
+── requirements.txt        # All requirements
 
 frontend/
 └── app.py                  # Streamlit UI, validation, map & schedule rendering
@@ -297,7 +298,7 @@ utils/
 tests/
 ├── benchmark.py            # Performance benchmarking (5/10/20+ cities)
 └── edge_cases.py           # Edge case testing
-
+└── test_solver_speed.py    # Core Algorithmic Efficiency
 ```
 ---
 
