@@ -1,5 +1,5 @@
 Dataset,Cities,Response Time (s),Stage-1 Time (ms),Stage-2 Time (ms),Total Distance (km),Total Time (hrs),Solver Used
-Small (5),5,27.841,NA,NA,742.86,11.56,Baseline (Cheapest Insertion)
-Medium (10),10,19.813,NA,NA,2269.74,33.06,Baseline (Cheapest Insertion)
-Large (20),20,30.111,NA,NA,4650.09,67.89,AI Evolutionary (Genetic Algorithm)
-XL (30),30,36.755,NA,NA,7979.72,113.65,AI Evolutionary (Genetic Algorithm)
+Small (5),5,6.851,NA,NA,742.86,11.56,Baseline (Cheapest Insertion)
+Medium (10),10,6.014,NA,NA,2269.74,33.06,Baseline (Cheapest Insertion)
+Large (20),20,8.858,NA,NA,4821.15,69.77,AI Evolutionary (Genetic Algorithm)
+XL (30),30,13.964,NA,NA,7979.72,113.65,AI Evolutionary (Genetic Algorithm)
